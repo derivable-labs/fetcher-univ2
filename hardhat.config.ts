@@ -1,12 +1,11 @@
-/** @type import('hardhat/config').HardhatUserConfig */
-const dotenv = require("dotenv");
-dotenv.config({ path: __dirname + "/.env" });
+import { HardhatUserConfig } from "hardhat/config";
 
-require("@nomiclabs/hardhat-ethers");
-require("hardhat-contract-sizer");
-require("hardhat-gas-reporter");
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
+import "hardhat-contract-sizer";
+import "hardhat-gas-reporter";
 
-module.exports = {
+const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
         compilers: [
@@ -103,3 +102,4 @@ module.exports = {
         only: [],
     }
 };
+export default config;
