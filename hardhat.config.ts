@@ -4,9 +4,10 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
+import "@nomiclabs/hardhat-ganache"
 
 const config: HardhatUserConfig = {
-    defaultNetwork: 'hardhat',
+    defaultNetwork: 'ganache',
     solidity: {
         compilers: [
             {
@@ -77,7 +78,7 @@ const config: HardhatUserConfig = {
             timeout: 20000,
             chainId: 8453
         },
-        ganache: {
+        ganacheservice: {
             url: 'http://127.0.0.1:8545',
             // kick balcony people guess oppose verb faint explain spoil learn that pool
             accounts: [
