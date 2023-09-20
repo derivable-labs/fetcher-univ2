@@ -115,3 +115,5 @@ artifacts
 contracts-exposed
 
 .vscode
+
+addresses.json
