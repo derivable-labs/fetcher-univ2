@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "patch": "node patch.js",
     "clean": "rimraf ./build/ ./cache/ ./artifacts/",
     "compile": "hardhat compile",
     "test": "hardhat test",
