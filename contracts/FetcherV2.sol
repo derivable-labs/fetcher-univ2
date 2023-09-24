@@ -24,7 +24,7 @@ contract FetcherV2 is UniswapOracle {
     // INDEX -> last cumulative price
     mapping(uint256 => uint256) lastCumulativePrice;
 
-    // event Price(uint256 oracle, uint256 price);
+    event Price(uint256 oracle, uint256 price, uint256 timestamp);
 
     function init(uint256 INDEX) public {
         address pair = address(uint160(INDEX));
@@ -74,7 +74,7 @@ contract FetcherV2 is UniswapOracle {
         address denominationToken = (qti == 1) ? pair.token1() : pair.token0();
 
         uint8 minBlocksBack = 0;
-        uint8 maxBlocksBack = 255;
+        uint8 maxBlocksBack = 1;
 
         (
             historicPriceCumulativeLast,
@@ -96,6 +96,7 @@ contract FetcherV2 is UniswapOracle {
             lastTimeUpdated[INDEX] = historicBlockTimestamp;
             lastCumulativePrice[INDEX] = historicPriceCumulativeLast;
         }
+        emit Price(INDEX, historicPriceCumulativeLast, historicBlockTimestamp);
     }
 
     function _getTwapAndUpdate(
