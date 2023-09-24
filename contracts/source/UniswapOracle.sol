@@ -81,6 +81,21 @@ contract UniswapOracle {
 		return (price, blockNumber);
 	}
 
+	function getHistoricPriceCumulativeLast(IUniswapV2Pair uniswapV2Pair, bool denominationTokenIs0, uint8 minBlocksBack, uint8 maxBlocksBack, ProofData memory proofData) public view returns (uint256 historicPriceCumulativeLast, uint256 historicBlockTimestamp) {
+		uint112 reserve0;
+		uint112 reserve1;
+		uint256 reserveTimestamp;
+		(historicBlockTimestamp,, historicPriceCumulativeLast, reserve0, reserve1, reserveTimestamp) = verifyBlockAndExtractReserveData(uniswapV2Pair, minBlocksBack, maxBlocksBack, denominationTokenIs0 ? token1Slot : token0Slot, proofData);
+		uint256 secondsBetweenReserveUpdateAndHistoricBlock = historicBlockTimestamp - reserveTimestamp;
+		// bring old record up-to-date, in case there was no cumulative update in provided historic block itself
+		if (secondsBetweenReserveUpdateAndHistoricBlock > 0) {
+			historicPriceCumulativeLast += secondsBetweenReserveUpdateAndHistoricBlock * uint(UQ112x112
+				.encode(denominationTokenIs0 ? reserve0 : reserve1)
+				.uqdiv(denominationTokenIs0 ? reserve1 : reserve0)
+			);
+		}
+	}
+
 	function getCurrentPriceCumulativeLast(IUniswapV2Pair uniswapV2Pair, bool denominationTokenIs0) public view returns (uint256 priceCumulativeLast) {
 		(uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = uniswapV2Pair.getReserves();
 		priceCumulativeLast = denominationTokenIs0 ? uniswapV2Pair.price1CumulativeLast() : uniswapV2Pair.price0CumulativeLast();

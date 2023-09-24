@@ -48,6 +48,12 @@ async function main() {
     const priceEmitter = await PriceEmitter.deploy()
     await priceEmitter.deployed()
     console.log('priceEmitter: ', priceEmitter.address)
+
+    // deploy PriceEmitter
+    const FetcherV2 = await ethers.getContractFactory("FetcherV2")
+    const fetcher = await FetcherV2.deploy()
+    await fetcher.deployed()
+    console.log('fetcher: ', fetcher.address)
     writeFileSync('addresses.json', JSON.stringify({
         busd: busd.address,
         weth: weth.address,
@@ -55,6 +61,7 @@ async function main() {
         uniswapRouter: uniswapRouter.address,
         uniswapPool: uniswapPool.address,
         priceEmitter: priceEmitter.address,
+        fetcher: fetcher.address,
     }))
     console.log('doneeee')
 }
