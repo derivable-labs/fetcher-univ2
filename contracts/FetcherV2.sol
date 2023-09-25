@@ -2,72 +2,117 @@
 pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
-import { UniswapOracle } from  "@keydonix/uniswap-oracle-contracts/source/UniswapOracle.sol";
-import { IUniswapV2Pair } from "@keydonix/uniswap-oracle-contracts/source/IUniswapV2Pair.sol";
+import "@keydonix/uniswap-oracle-contracts/source/MerklePatriciaVerifier.sol";
+import "@keydonix/uniswap-oracle-contracts/source/Rlp.sol";
+import "@keydonix/uniswap-oracle-contracts/source/BlockVerifier.sol";
 import "./source/FullMath.sol";
+import "./source/UniswapV2OracleLibrary.sol";
 
-contract FetcherV2 is UniswapOracle {
-    uint256 internal constant Q64 = 1 << 64;
-    uint256 internal constant Q80 = 1 << 80;
-    uint256 internal constant Q192 = 1 << 192;
-    uint256 internal constant Q255 = 1 << 255;
+contract FetcherV2 {
     uint256 internal constant Q128 = 1 << 128;
-    uint256 internal constant Q256M = type(uint256).max;
+	bytes32 internal constant RESERVE_TIMESTAMP_SLOT_HASH = keccak256(abi.encodePacked(uint256(8)));
 
-    // ORACLE -> timestamp
-    mapping(uint256 => uint256) lastTimeUpdated;
+    mapping(uint256 => uint256) s_basePriceCumulative;
+    mapping(uint256 => uint256) s_lastTimestamp;
 
-    // ORACLE -> price
-    mapping(uint256 => uint256) lastTWAPPrice;
-
-    event Price(uint256 oracle, uint256 price);
+    struct ProofData {
+        bytes block;
+        bytes accountProofNodesRlp;
+        bytes reserveAndTimestampProofNodesRlp;
+        bytes priceAccumulatorProofNodesRlp;
+    }
 
     function fetch(
         uint256 ORACLE
-    ) public view returns (uint256 twap, uint256 spot) {
+    ) external virtual view returns (uint256 twap, uint256 spot) {
+        uint32 window = uint32(ORACLE >> 192);
+        uint lastTimestamp = s_lastTimestamp[ORACLE];
+        require(lastTimestamp + window >= block.timestamp, "OLD");
+        require(lastTimestamp + (window >> 1) <= block.timestamp, "NEW");
+
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
-        uint32 window = uint32(ORACLE >> 192);
-        require(
-            block.timestamp - lastTimeUpdated[ORACLE] < uint256(window),
-            "OLD"
-        );
 
-        spot = _getSpot(pair, qti);
-        twap = lastTWAPPrice[ORACLE];
+        (uint basePriceCumulative, uint blockTimestamp) = UniswapV2OracleLibrary
+            .currentCumulativePrice(pair, qti);
+        require(lastTimestamp < blockTimestamp, "NOW");
+
+        twap = (
+            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
+            (blockTimestamp - lastTimestamp)
+        ) << 16;
+
+        (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
+        if (qti == 0) {
+            (rb, rq) = (rq, rb);
+        }
+        spot = FullMath.mulDiv(Q128, rq, rb);
     }
 
-    function fetchTwapPrice(
+    // This function verifies the full block is old enough (MIN_BLOCK_COUNT),
+    // not too old (or blockhash will return 0x0) and return the proof values
+    // for the two storage slots we care about
+    function submit(
         uint256 ORACLE,
-        UniswapOracle.ProofData memory proofData
-    ) public returns (uint256 price, uint256 blockNumber) {
-        IUniswapV2Pair pair = IUniswapV2Pair(address(uint160(ORACLE)));
-        uint256 qti = ORACLE >> 255;
-        address denominationToken = (qti == 1) ? pair.token1() : pair.token0();
+        address uniswapV2Pair,
+        bytes32 slotHash,
+        ProofData memory proofData
+    ) public virtual {
+        (
+            bytes32 storageRootHash,
+            uint256 blockNumber,
+            uint256 blockTimestamp
+        ) = _getAccountStorageRoot(uniswapV2Pair, proofData);
+        require(blockNumber > block.number - 256, "PROOF_TOO_OLD");
 
-        uint8 minBlocksBack = 0;
-        uint8 maxBlocksBack = 255;
+        uint32 window = uint32(ORACLE >> 192);
+        require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
+        require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
 
-        (price, blockNumber) = getPrice(
-            pair,
-            denominationToken,
-            minBlocksBack,
-            maxBlocksBack,
-            proofData
+        uint256 reserve0Reserve1TimestampPacked = Rlp.rlpBytesToUint256(
+            MerklePatriciaVerifier.getValueFromProof(
+                storageRootHash,
+                RESERVE_TIMESTAMP_SLOT_HASH,
+                proofData.reserveAndTimestampProofNodesRlp
+            )
         );
+        uint256 lastTimestamp = reserve0Reserve1TimestampPacked >> (112 + 112);
+        require(s_lastTimestamp[ORACLE] < lastTimestamp, "EXIST");
 
-        lastTimeUpdated[ORACLE] = block.timestamp;
-        lastTWAPPrice[ORACLE] = price;
-
-        emit Price(ORACLE, price);
+        s_lastTimestamp[ORACLE] = lastTimestamp;
+        s_basePriceCumulative[ORACLE] = Rlp.rlpBytesToUint256(
+            MerklePatriciaVerifier.getValueFromProof(
+                storageRootHash,
+                slotHash,
+                proofData.priceAccumulatorProofNodesRlp
+            )
+        );
     }
 
-    function _getSpot(
-        address pair,
-        uint256 qti
-    ) internal view returns (uint256 spot) {
-        (uint r0, uint r1, ) = IUniswapV2Pair(pair).getReserves();
-        (uint rb, uint rq) = (qti == 1) ? (r0, r1) : (r1, r0);
-        spot = FullMath.mulDiv(rq, Q128, rb);
+    function _getAccountStorageRoot(
+        address uniswapV2Pair,
+        ProofData memory proofData
+    )
+        internal
+        view
+        returns (
+            bytes32 storageRootHash,
+            uint256 blockNumber,
+            uint256 blockTimestamp
+        )
+    {
+        bytes32 stateRoot;
+        (stateRoot, blockTimestamp, blockNumber) = BlockVerifier
+            .extractStateRootAndTimestamp(proofData.block);
+        bytes memory accountDetailsBytes = MerklePatriciaVerifier
+            .getValueFromProof(
+                stateRoot,
+                keccak256(abi.encodePacked(uniswapV2Pair)),
+                proofData.accountProofNodesRlp
+            );
+        Rlp.Item[] memory accountDetails = Rlp.toList(
+            Rlp.toItem(accountDetailsBytes)
+        );
+        return (Rlp.toBytes32(accountDetails[2]), blockNumber, blockTimestamp);
     }
 }
