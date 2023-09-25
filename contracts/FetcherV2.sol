@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.8;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.20;
 
 import {UniswapV2OracleLibrary} from "@uniswap/v2-periphery/contracts/libraries/UniswapV2OracleLibrary.sol";
 import {UniswapOracle} from "./source/UniswapOracle.sol";
-import {IUniswapV2Pair} from "./source/IUniswapV2Pair.sol";
-import "./source/FullMath.sol";
+import { IUniswapV2Pair } from "./source/IUniswapV2Pair.sol";
+import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 
 contract FetcherV2 is UniswapOracle {
+    uint256 internal constant INDEX_MASK = 0x800000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint256 internal constant Q64 = 1 << 64;
     uint256 internal constant Q80 = 1 << 80;
     uint256 internal constant Q192 = 1 << 192;
@@ -47,10 +47,10 @@ contract FetcherV2 is UniswapOracle {
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
         uint32 window = uint32(ORACLE >> 192);
-        uint INDEX = _getIndex(pair, qti);
+        uint INDEX = ORACLE & INDEX_MASK;
         require(lastTimeUpdated[INDEX] > 0, "uninitialized");
         require(
-            block.timestamp - lastTimeUpdated[_getIndex(pair, qti)] <
+            block.timestamp - lastTimeUpdated[INDEX] <
                 uint256(window),
             "OLD"
         );
@@ -143,6 +143,6 @@ contract FetcherV2 is UniswapOracle {
         address pair,
         uint256 qti
     ) internal pure returns (uint256 index) {
-        return (qti << 255) + uint256(pair);
+        return (qti << 255) + uint256(uint160(pair));
     }
 }

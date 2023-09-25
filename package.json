@@ -29,6 +29,7 @@
     "@types/node-fetch": "^2.6.4",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "@uniswap/v3-core": "https://github.com/Uniswap/v3-core.git#0.8",
     "@zoltu/ethereum-crypto": "^2.3.0",
     "@zoltu/ethereum-fetch-json-rpc": "^13.1.4",
     "@zoltu/rlp-encoder": "2.0.0",
