@@ -4,6 +4,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
+import "@nomiclabs/hardhat-ganache"
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'ganache',
@@ -37,16 +38,16 @@ const config: HardhatUserConfig = {
                 },
             ]
         },
-        ganache: {
-            url: 'http://127.0.0.1:7545',
-            // kick balcony people guess oppose verb faint explain spoil learn that pool
-            accounts: [
-                '60f5906de1edfc4d14eb4aea49ed4c06641bbdbd5a56092392308e9730598373',
-                '70ddda4400c15d2daa517f858defab22c8a5d9adeaf3d74caa5ca86a5959ddd9'
-            ],
-            timeout: 900000,
-            chainId: 1337
-        },
+        // ganache: {
+        //     url: 'http://127.0.0.1:7545',
+        //     // kick balcony people guess oppose verb faint explain spoil learn that pool
+        //     accounts: [
+        //         '60f5906de1edfc4d14eb4aea49ed4c06641bbdbd5a56092392308e9730598373',
+        //         '70ddda4400c15d2daa517f858defab22c8a5d9adeaf3d74caa5ca86a5959ddd9'
+        //     ],
+        //     timeout: 900000,
+        //     chainId: 1337
+        // },
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,

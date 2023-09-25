@@ -1,5 +1,3 @@
-import { Crypto } from '@peculiar/webcrypto'
-;(global as any).crypto = new Crypto()
 import * as OracleSdk from '@keydonix/uniswap-oracle-sdk'
 import * as OracleSdkAdapter from '@keydonix/uniswap-oracle-sdk-adapter'
 import hre, { ethers } from "hardhat"
@@ -8,18 +6,20 @@ const pe = (x: any) => ethers.utils.parseEther(String(x))
 
 describe('price', function () {
     before(async function() {
+        console.log(hre.network.name)
         // deploy uniswap v2
         const [owner] = await ethers.getSigners()
+        console.log( await owner.getBalance())
         const signer = owner
         // weth test
         const compiledWETH = require("canonical-weth/build/contracts/WETH9.json")
-        const WETH = await new ethers.ContractFactory(compiledWETH.abi, compiledWETH.bytecode, signer)
+        const WETH = new ethers.ContractFactory(compiledWETH.abi, compiledWETH.bytecode, signer)
         // uniswap factory
         const compiledUniswapFactory = require("@uniswap/v2-core/build/UniswapV2Factory.json")
-        const UniswapFactory = await new ethers.ContractFactory(compiledUniswapFactory.interface, compiledUniswapFactory.bytecode, signer)
+        const UniswapFactory = new ethers.ContractFactory(compiledUniswapFactory.interface, compiledUniswapFactory.bytecode, signer)
         // uniswap router
         const compiledUniswapRouter = require("@uniswap/v2-periphery/build/UniswapV2Router02")
-        const UniswapRouter = await new ethers.ContractFactory(compiledUniswapRouter.abi, compiledUniswapRouter.bytecode, signer)
+        const UniswapRouter = new ethers.ContractFactory(compiledUniswapRouter.abi, compiledUniswapRouter.bytecode, signer)
         // erc20 factory
         const compiledERC20 = require("@uniswap/v2-core/build/ERC20.json")
         const erc20Factory = new ethers.ContractFactory(compiledERC20.abi, compiledERC20.bytecode, signer)
@@ -35,13 +35,13 @@ describe('price', function () {
         await busd.approve(uniswapRouter.address, ethers.constants.MaxUint256)
         await uniswapRouter.addLiquidityETH(
             busd.address,
-            '10480444925500000000000000',
-            '10480444925000000000000000',
-            '6986963283651477901852',
+            '1500000000000000000000',
+            '1500000000000000000000',
+            '1000000000000000000',
             owner.address,
             new Date().getTime() + 100000,
             {
-                value: '6986963283651477901852'
+                value: '1000000000000000000'
             }
         )
         const pairAddresses = await uniswapFactory.allPairs(0)
@@ -50,10 +50,9 @@ describe('price', function () {
         // deploy PriceEmitter
         const PriceEmitter = await ethers.getContractFactory("PriceEmitter")
         const priceEmitter = await PriceEmitter.deploy()
-        await priceEmitter.deployed()
         console.log('priceEmitter: ', priceEmitter.address)
     })
-    it('deploy', async () => {
-        
+    it('deploy', async function() {
+        console.log('done')
     })
 })
