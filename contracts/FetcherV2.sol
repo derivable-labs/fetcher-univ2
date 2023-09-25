@@ -2,8 +2,8 @@
 pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
-import {UniswapOracle} from "./source/UniswapOracle.sol";
-import {IUniswapV2Pair} from "./source/IUniswapV2Pair.sol";
+import { UniswapOracle } from  "@keydonix/uniswap-oracle-contracts/source/UniswapOracle.sol";
+import { IUniswapV2Pair } from "@keydonix/uniswap-oracle-contracts/source/IUniswapV2Pair.sol";
 import "./source/FullMath.sol";
 
 contract FetcherV2 is UniswapOracle {
