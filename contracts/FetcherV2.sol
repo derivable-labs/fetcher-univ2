@@ -11,6 +11,8 @@ import "./source/UniswapV2OracleLibrary.sol";
 contract FetcherV2 {
     uint256 internal constant Q128 = 1 << 128;
 	bytes32 internal constant RESERVE_TIMESTAMP_SLOT_HASH = keccak256(abi.encodePacked(uint256(8)));
+	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
+	bytes32 internal constant PRICE_CUMULATIVE_1_SLOT_HASH = keccak256(abi.encodePacked(uint256(10)));
 
     mapping(uint256 => uint256) s_basePriceCumulative;
     mapping(uint256 => uint256) s_lastTimestamp;
@@ -55,7 +57,6 @@ contract FetcherV2 {
     function submit(
         uint256 ORACLE,
         address uniswapV2Pair,
-        bytes32 slotHash,
         ProofData memory proofData
     ) public virtual {
         (
@@ -78,8 +79,12 @@ contract FetcherV2 {
         );
         uint256 lastTimestamp = reserve0Reserve1TimestampPacked >> (112 + 112);
         require(s_lastTimestamp[ORACLE] < lastTimestamp, "EXIST");
-
+        // TODO: require(lastTimestamp + window / 2 < block.timestamp, "PROOF_TOO_NEW");
         s_lastTimestamp[ORACLE] = lastTimestamp;
+
+        uint256 qti = ORACLE >> 255;
+        bytes32 slotHash = qti == 1 ? PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH;
+
         s_basePriceCumulative[ORACLE] = Rlp.rlpBytesToUint256(
             MerklePatriciaVerifier.getValueFromProof(
                 storageRootHash,
