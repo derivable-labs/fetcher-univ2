@@ -10,23 +10,42 @@ const opts = {
     gasLimit: 500000
 }
 
+const bn = ethers.BigNumber.from
+
 const main = async (hre: any) => {
     const url = hre.network.config.url
     const gasPrice = 10n**9n
     const rpc = await createMemoryRpc(url, gasPrice)
     const blockNumber = await rpc.getBlockNumber()
+    console.log('blockNumber: ', bn(blockNumber).sub(10).toBigInt())
     // get the proof from the SDK
-	const proof = await OracleSdk.getProof(rpc.getStorageAt, rpc.getProof, ethGetBlockByNumber.bind(undefined, rpc), BigInt(addresses.uniswapPool), BigInt(addresses.busd), blockNumber)
+	const proof = await OracleSdk.getProof(rpc.getStorageAt, rpc.getProof, ethGetBlockByNumber.bind(undefined, rpc), BigInt(addresses.uniswapPool), BigInt(addresses.busd), bn(blockNumber).sub(30).toBigInt())
     // Connect to the network
     const provider = new ethers.providers.JsonRpcProvider(url)
     const account = hre.network.config.accounts[0]
     const wallet = new ethers.Wallet(account, provider)
 
-    const priceEmitterABI = require("../artifacts/contracts/PriceEmitter.sol/PriceEmitter.json").abi
-    const priceEmitter = new ethers.Contract(addresses.priceEmitter, priceEmitterABI, provider)
-    const contractWithSigner = priceEmitter.connect(wallet)
-    const receipt = await (await contractWithSigner.emitPrice(addresses.uniswapPool, addresses.busd, 0n, 1n, proof, opts)).wait()
-	console.log(receipt.events[0])
+    // const priceEmitterABI = require("../artifacts/contracts/PriceEmitter.sol/PriceEmitter.json").abi
+    // const priceEmitter = new ethers.Contract(addresses.priceEmitter, priceEmitterABI, provider)
+    // const contractWithSigner = priceEmitter.connect(wallet)
+    // const receipt = await (await contractWithSigner.emitPrice(addresses.uniswapPool, addresses.busd, 0n, 1n, proof, opts)).wait()
+	// console.log(receipt.events[0])
+
+    const fetcherABI = require("../artifacts/contracts/FetcherV2.sol/FetcherV2.json").abi
+    const fetcher = new ethers.Contract(addresses.fetcherV2, fetcherABI, provider)
+    const contractWithSigner = fetcher.connect(wallet)
+    // const receipt = await (await contractWithSigner.emitPrice(addresses.uniswapPool, addresses.busd, 0n, 1n, proof, opts)).wait()
+	// console.log(receipt.events[0])
+
+    const quoteTokenIndex = addresses.weth.toLowerCase() < addresses.busd.toLowerCase() ? 1 : 0
+    const index = ethers.utils.hexZeroPad(
+        bn(quoteTokenIndex).shl(255).add(bn(300).shl(256 - 64)).add(addresses.uniswapPool).toHexString(),
+        32,
+    )
+
+    const receipt = await (await contractWithSigner.submit(index, proof)).wait()
+    console.log(receipt.events[0])
+
     // create the getters the SDK needs from an Ethereum instance off the window.  you could use `window.web3.currentProvider` instead of `window.ethereum` if that is what is available
     // const provider = new Web3.providers.HttpProvider(
     //     hre.network.config.url,
