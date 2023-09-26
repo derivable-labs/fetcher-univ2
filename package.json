@@ -35,7 +35,6 @@
     "canonical-weth": "^1.4.0",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
-    "curve-merkle-oracle": "https://github.com/lidofinance/curve-merkle-oracle.git",
     "mocha": "^10.0.0",
     "node-fetch": "^2.6.6",
     "solidity-rlp": "https://github.com/hamdiallam/Solidity-RLP.git",

@@ -2938,10 +2938,6 @@ crypto-browserify@3.12.0:
     randombytes "^2.0.0"
     randomfill "^1.0.3"
 
-"curve-merkle-oracle@https://github.com/lidofinance/curve-merkle-oracle.git":
-  version "0.0.0"
-  resolved "https://github.com/lidofinance/curve-merkle-oracle.git#fffd375659358af54a6e8bbf8c3aa44188894c81"
-
 d@1, d@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/d/-/d-1.0.1.tgz#8698095372d58dbee346ffd0c7093f99f8f9eb5a"
