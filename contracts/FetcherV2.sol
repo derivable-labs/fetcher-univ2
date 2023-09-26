@@ -56,14 +56,14 @@ contract FetcherV2 {
     // for the two storage slots we care about
     function submit(
         uint256 ORACLE,
-        address uniswapV2Pair,
         ProofData memory proofData
     ) public virtual {
+        address pair = address(uint160(ORACLE));
         (
             bytes32 storageRootHash,
             uint256 blockNumber,
             uint256 blockTimestamp
-        ) = _getAccountStorageRoot(uniswapV2Pair, proofData);
+        ) = _getAccountStorageRoot(pair, proofData);
         require(blockNumber > block.number - 256, "PROOF_TOO_OLD");
 
         uint32 window = uint32(ORACLE >> 192);
