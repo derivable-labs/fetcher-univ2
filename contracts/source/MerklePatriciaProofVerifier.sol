@@ -19,7 +19,7 @@ library MerklePatriciaProofVerifier {
     ///      the exclusion of a key from the trie, an empty byte array is
     ///      returned.
     /// @param rootHash is the Keccak-256 hash of the root node of the MPT.
-    /// @param path is the key of the node whose inclusion/exclusion we are
+    /// @param mptKey is the key of the node whose inclusion/exclusion we are
     ///        proving.
     /// @param stack is the stack of MPT nodes (starting with the root) that
     ///        need to be traversed during verification.
@@ -27,10 +27,9 @@ library MerklePatriciaProofVerifier {
     ///         a proof of exclusion
     function extractProofValue(
         bytes32 rootHash,
-        bytes memory path,
+        bytes memory mptKey,
         RLPReader.RLPItem[] memory stack
     ) internal pure returns (bytes memory value) {
-        bytes memory mptKey = _decodeNibbles(path, 0);
         uint256 mptKeyOffset = 0;
 
         bytes32 nodeHashHash;
