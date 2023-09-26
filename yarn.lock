@@ -2938,6 +2938,10 @@ crypto-browserify@3.12.0:
     randombytes "^2.0.0"
     randomfill "^1.0.3"
 
+"curve-merkle-oracle@https://github.com/lidofinance/curve-merkle-oracle.git":
+  version "0.0.0"
+  resolved "https://github.com/lidofinance/curve-merkle-oracle.git#fffd375659358af54a6e8bbf8c3aa44188894c81"
+
 d@1, d@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/d/-/d-1.0.1.tgz#8698095372d58dbee346ffd0c7093f99f8f9eb5a"
@@ -7295,6 +7299,10 @@ solc@0.7.3:
     require-from-string "^2.0.0"
     semver "^5.5.0"
     tmp "0.0.33"
+
+"solidity-rlp@https://github.com/hamdiallam/Solidity-RLP.git":
+  version "2.0.8"
+  resolved "https://github.com/hamdiallam/Solidity-RLP.git#0212f8e754471da67fc5387df7855f47f944f925"
 
 source-map-resolve@^0.5.0:
   version "0.5.3"
