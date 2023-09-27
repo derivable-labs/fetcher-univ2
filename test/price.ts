@@ -67,36 +67,32 @@ describe('price', function () {
         console.log('fetcherV2: ', fetcherV2.address)
 
         // swap monkey
-        for (let index = 0; index < 10; index++) {
-            await (
-                await uniswapRouter
-                    .connect(signer)
-                    .swapExactTokensForETH(
-                        pe(Math.floor(Math.random() * 11) + 1),
-                        0,
-                        [busd.address, weth.address],
-                        owner.address,
-                        100000000000000,
-                        {gasLimit: 5000000}
-                    )
-            ).wait(1);
-            await ethers.provider.send("evm_increaseTime", [50])
+        for (let index = 0; index < 100; index++) {
+            await uniswapRouter
+                .connect(signer)
+                .swapExactTokensForETH(
+                    pe(Math.floor(Math.random() * 11) + 1),
+                    0,
+                    [busd.address, weth.address],
+                    owner.address,
+                    100000000000000,
+                    {gasLimit: 5000000}
+                );
+            await ethers.provider.send("evm_increaseTime", [3])
             await ethers.provider.send("evm_mine", [])
-            await (
-                await uniswapRouter
-                    .connect(signer)
-                    .swapExactETHForTokens(
-                        0,
-                        [weth.address, busd.address],
-                        owner.address,
-                        100000000000000,
-                        {
-                            value: pe(Math.floor(Math.random() * 11) + 1),
-                            gasLimit: 5000000
-                        }
-                    )
-            ).wait(1);
-            await ethers.provider.send("evm_increaseTime", [50])
+            await uniswapRouter
+                .connect(signer)
+                .swapExactETHForTokens(
+                    0,
+                    [weth.address, busd.address],
+                    owner.address,
+                    100000000000000,
+                    {
+                        value: pe(Math.floor(Math.random() * 11) + 1),
+                        gasLimit: 5000000
+                    }
+                )
+            await ethers.provider.send("evm_increaseTime", [3])
             await ethers.provider.send("evm_mine", [])
         }
     })
@@ -105,7 +101,6 @@ describe('price', function () {
         const gasPrice = 10n ** 9n;
         const rpc = await createMemoryRpc(url, gasPrice);
         const blockNumber = await rpc.getBlockNumber();
-        console.log(blockNumber)
         // get the proof from the SDK
         const proof = await OracleSdk.getProof(
             rpc.getStorageAt,
@@ -113,13 +108,10 @@ describe('price', function () {
             ethGetBlockByNumber.bind(undefined, rpc),
             BigInt(uniswapPool.address),
             BigInt(busd.address),
-            bn(blockNumber).sub(10).toBigInt()
+            bn(blockNumber).sub(100).toBigInt()
         );
         // Connect to the network
         const contractWithSigner = fetcherV2;
-        // const receipt = await (await contractWithSigner.emitPrice(addresses.uniswapPool, addresses.busd, 0n, 1n, proof, opts)).wait()
-        // console.log(receipt.events[0])
-
         const quoteTokenIndex =
             weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0;
         const index = ethers.utils.hexZeroPad(

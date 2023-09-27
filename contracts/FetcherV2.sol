@@ -67,8 +67,8 @@ contract FetcherV2 {
         require(blockNumber > block.number - 256, "PROOF_TOO_OLD");
 
         uint32 window = uint32(ORACLE >> 192);
-        // require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
-        // require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
+        require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
+        require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
 
         uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
             storageRootHash,
