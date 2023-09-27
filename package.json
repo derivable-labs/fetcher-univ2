@@ -3,7 +3,7 @@
     "patch": "node patch.js",
     "clean": "rimraf ./build/ ./cache/ ./artifacts/",
     "compile": "hardhat compile",
-    "test": "hardhat test",
+    "test": "npx hardhat --network ganacheservice test",
     "coverage": "hardhat coverage",
     "lint": "hardhat check",
     "deploy:ganache": "npx hardhat run scripts/deploy.ganache.ts --network ganache"

@@ -15,7 +15,7 @@ describe('price', function () {
     let busd: any
     let weth: any
 
-    before(async function() {
+    beforeEach(async function() {
         // deploy uniswap v2
         const [owner] = await ethers.getSigners()
         const signer = owner
@@ -32,7 +32,7 @@ describe('price', function () {
         const compiledERC20 = require("@uniswap/v2-core/build/ERC20.json")
         const erc20Factory = new ethers.ContractFactory(compiledERC20.abi, compiledERC20.bytecode, signer)
         // setup uniswap
-        busd = await erc20Factory.deploy(pe(100000000))
+        busd = await erc20Factory.deploy(pe(10000000000))
         console.log('busd: ', busd.address)
         weth = await WETH.deploy()
         console.log('weth: ', weth.address)
@@ -65,12 +65,47 @@ describe('price', function () {
         fetcherV2 = await FetcherV2.deploy()
         await fetcherV2.deployed()
         console.log('fetcherV2: ', fetcherV2.address)
+
+        // swap monkey
+        for (let index = 0; index < 10; index++) {
+            await (
+                await uniswapRouter
+                    .connect(signer)
+                    .swapExactTokensForETH(
+                        pe(Math.floor(Math.random() * 11) + 1),
+                        0,
+                        [busd.address, weth.address],
+                        owner.address,
+                        100000000000000,
+                        {gasLimit: 5000000}
+                    )
+            ).wait(1);
+            await ethers.provider.send("evm_increaseTime", [50])
+            await ethers.provider.send("evm_mine", [])
+            await (
+                await uniswapRouter
+                    .connect(signer)
+                    .swapExactETHForTokens(
+                        0,
+                        [weth.address, busd.address],
+                        owner.address,
+                        100000000000000,
+                        {
+                            value: pe(Math.floor(Math.random() * 11) + 1),
+                            gasLimit: 5000000
+                        }
+                    )
+            ).wait(1);
+            await ethers.provider.send("evm_increaseTime", [50])
+            await ethers.provider.send("evm_mine", [])
+        }
     })
     it('fetch price', async () => {
         const url = 'http://127.0.0.1:8545';
         const gasPrice = 10n ** 9n;
         const rpc = await createMemoryRpc(url, gasPrice);
         const blockNumber = await rpc.getBlockNumber();
+        console.log(blockNumber)
         // get the proof from the SDK
         const proof = await OracleSdk.getProof(
             rpc.getStorageAt,
@@ -81,7 +116,6 @@ describe('price', function () {
             bn(blockNumber).sub(10).toBigInt()
         );
         // Connect to the network
-
         const contractWithSigner = fetcherV2;
         // const receipt = await (await contractWithSigner.emitPrice(addresses.uniswapPool, addresses.busd, 0n, 1n, proof, opts)).wait()
         // console.log(receipt.events[0])
@@ -98,8 +132,8 @@ describe('price', function () {
         );
 
         const receipt = await (
-            await contractWithSigner.submit(index, proof)
+            await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
         ).wait();
-        console.log(receipt.events[0]);
+        console.log(receipt);
     })
 })
