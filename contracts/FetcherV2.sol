@@ -2,8 +2,6 @@
 pragma solidity 0.6.8;
 pragma experimental ABIEncoderV2;
 
-import "@keydonix/uniswap-oracle-contracts/source/MerklePatriciaVerifier.sol";
-import "@keydonix/uniswap-oracle-contracts/source/Rlp.sol";
 import "@keydonix/uniswap-oracle-contracts/source/BlockVerifier.sol";
 import "solidity-rlp/contracts/RLPReader.sol";
 import "./source/MerklePatriciaProofVerifier.sol";
@@ -69,31 +67,28 @@ contract FetcherV2 {
         require(blockNumber > block.number - 256, "PROOF_TOO_OLD");
 
         uint32 window = uint32(ORACLE >> 192);
-        require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
-        require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
+        // require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
+        // require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
 
-        uint256 reserve0Reserve1TimestampPacked = Rlp.rlpBytesToUint256(
-            MerklePatriciaProofVerifier.extractProofValue(
-                storageRootHash,
-                _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
-                RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-            )
-        );
-        uint256 lastTimestamp = reserve0Reserve1TimestampPacked >> (112 + 112);
-        require(s_lastTimestamp[ORACLE] < lastTimestamp, "EXIST");
+        uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
+            storageRootHash,
+            _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
+            RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
+        )));
+        require(s_lastTimestamp[ORACLE] < reserve0Reserve1TimestampPacked >> (112 + 112), "EXIST");
         // TODO: require(lastTimestamp + window / 2 < block.timestamp, "PROOF_TOO_NEW");
-        s_lastTimestamp[ORACLE] = lastTimestamp;
+        s_lastTimestamp[ORACLE] = reserve0Reserve1TimestampPacked >> (112 + 112);
 
         uint256 qti = ORACLE >> 255;
         bytes32 slotHash = qti == 1 ? PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH;
 
-        s_basePriceCumulative[ORACLE] = Rlp.rlpBytesToUint256(
+        s_basePriceCumulative[ORACLE] = RLPReader.toUint(RLPReader.toRlpItem(
             MerklePatriciaProofVerifier.extractProofValue(
                 storageRootHash,
                 _decodeBytes32Nibbles(slotHash),
                 RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
             )
-        );
+        ));
     }
     
     function _decodeBytes32Nibbles(bytes32 path) internal pure returns (bytes memory nibblePath) {
@@ -145,15 +140,15 @@ contract FetcherV2 {
         bytes32 stateRoot;
         (stateRoot, blockTimestamp, blockNumber) = BlockVerifier
             .extractStateRootAndTimestamp(proofData.block);
-        bytes memory accountDetailsBytes = MerklePatriciaVerifier
-            .getValueFromProof(
+        bytes memory accountDetailsBytes = MerklePatriciaProofVerifier
+            .extractProofValue(
                 stateRoot,
-                keccak256(abi.encodePacked(uniswapV2Pair)),
-                proofData.accountProofNodesRlp
+                _decodeBytes32Nibbles(keccak256(abi.encodePacked(uniswapV2Pair))),
+                RLPReader.toList(RLPReader.toRlpItem(proofData.accountProofNodesRlp))
             );
-        Rlp.Item[] memory accountDetails = Rlp.toList(
-            Rlp.toItem(accountDetailsBytes)
+        RLPReader.RLPItem[] memory accountDetails = RLPReader.toList(
+            RLPReader.toRlpItem(accountDetailsBytes)
         );
-        return (Rlp.toBytes32(accountDetails[2]), blockNumber, blockTimestamp);
+        return (bytes32(RLPReader.toUint(accountDetails[2])), blockNumber, blockTimestamp);
     }
 }
