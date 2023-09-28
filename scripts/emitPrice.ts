@@ -5,6 +5,7 @@ import hre, { ethers } from "hardhat"
 import { ethGetBlockByNumber } from './adapters';
 import { createMemoryRpc } from './rpc-factories'
 import addresses from '../addresses.json'
+import { getProof } from './helper';
 
 const opts = {
     gasLimit: 500000
@@ -18,11 +19,15 @@ const main = async (hre: any) => {
     const rpc = await createMemoryRpc(url, gasPrice)
     const blockNumber = await rpc.getBlockNumber()
     // get the proof from the SDK
-	const proof = await OracleSdk.getProof(rpc.getStorageAt, rpc.getProof, ethGetBlockByNumber.bind(undefined, rpc), BigInt(addresses.uniswapPool), BigInt(addresses.busd), bn(blockNumber).sub(0).toBigInt())
+	// const proofSdk = await OracleSdk.getProof(rpc.getStorageAt, rpc.getProof, ethGetBlockByNumber.bind(undefined, rpc), BigInt(addresses.uniswapPool), BigInt(addresses.busd), bn(blockNumber).sub(0).toBigInt())
+    // console.log(proofSdk)
     // Connect to the network
     const provider = new ethers.providers.JsonRpcProvider(url)
     const account = hre.network.config.accounts[0]
     const wallet = new ethers.Wallet(account, provider)
+
+    const proof = await getProof(rpc.getStorageAt, rpc.getProof, ethGetBlockByNumber.bind(undefined, rpc), BigInt(addresses.uniswapPool), BigInt(addresses.busd), bn(blockNumber).sub(0).toBigInt())
+    console.log(proof)
 
     // const priceEmitterABI = require("../artifacts/contracts/PriceEmitter.sol/PriceEmitter.json").abi
     // const priceEmitter = new ethers.Contract(addresses.priceEmitter, priceEmitterABI, provider)

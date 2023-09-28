@@ -1,10 +1,9 @@
 import { Crypto } from '@peculiar/webcrypto'
-;(global as any).crypto = new Crypto()
-import * as OracleSdk from '@keydonix/uniswap-oracle-sdk'
-import * as OracleSdkAdapter from '@keydonix/uniswap-oracle-sdk-adapter'
+(global as any).crypto = new Crypto()
 import hre, { ethers } from "hardhat"
-import { createMemoryRpc } from '../scripts/rpc-factories';
-import { ethGetBlockByNumber } from '../scripts/adapters';
+import { createMemoryRpc } from '../scripts/rpc-factories'
+import { ethGetBlockByNumber } from '../scripts/adapters'
+import { getProof } from '../scripts/helper'
 
 const pe = (x: any) => ethers.utils.parseEther(String(x))
 const bn = ethers.BigNumber.from
@@ -77,7 +76,7 @@ describe('price', function () {
                     owner.address,
                     100000000000000,
                     {gasLimit: 5000000}
-                );
+                )
             await ethers.provider.send("evm_increaseTime", [3])
             await ethers.provider.send("evm_mine", [])
             await uniswapRouter
@@ -97,23 +96,23 @@ describe('price', function () {
         }
     })
     it('fetch price', async () => {
-        const url = 'http://127.0.0.1:8545';
-        const gasPrice = 10n ** 9n;
-        const rpc = await createMemoryRpc(url, gasPrice);
-        const blockNumber = await rpc.getBlockNumber();
+        const url = 'http://127.0.0.1:8545'
+        const gasPrice = 10n ** 9n
+        const rpc = await createMemoryRpc(url, gasPrice)
+        const blockNumber = await rpc.getBlockNumber()
         // get the proof from the SDK
-        const proof = await OracleSdk.getProof(
+        const proof = await getProof(
             rpc.getStorageAt,
             rpc.getProof,
             ethGetBlockByNumber.bind(undefined, rpc),
             BigInt(uniswapPool.address),
             BigInt(busd.address),
             bn(blockNumber).sub(100).toBigInt()
-        );
+        )
         // Connect to the network
-        const contractWithSigner = fetcherV2;
+        const contractWithSigner = fetcherV2
         const quoteTokenIndex =
-            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0;
+            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
         const index = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
@@ -121,11 +120,11 @@ describe('price', function () {
                 .add(uniswapPool.address)
                 .toHexString(),
             32
-        );
+        )
 
         const receipt = await (
             await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
-        ).wait();
-        console.log(receipt);
+        ).wait()
+        console.log(receipt)
     })
 })
