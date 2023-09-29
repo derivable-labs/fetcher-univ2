@@ -1,4 +1,8 @@
 {
+  "name": "@derivable/fetcher-univ2",
+  "description": "Price fetcher for Uniswap V2",
+  "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
     "patch": "node patch.js",
     "clean": "rimraf ./build/ ./cache/ ./artifacts/",
