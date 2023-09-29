@@ -7,6 +7,7 @@
     "patch": "node patch.js",
     "clean": "rimraf ./build/ ./cache/ ./artifacts/",
     "compile": "hardhat compile",
+    "build": "hardhat compile && cp artifacts/contracts/FetcherV2.sol/FetcherV2.json build/",
     "test": "npx hardhat --network ganacheservice test",
     "coverage": "hardhat coverage",
     "lint": "hardhat check",
