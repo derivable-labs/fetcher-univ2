@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@ganache/console.log": "^0.4.1",
+    "@derivable/utr": "https://github.com/derivable-labs/utr.git",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@nomiclabs/hardhat-ganache": "^2.0.1",

@@ -7,8 +7,9 @@ import "solidity-rlp/contracts/RLPReader.sol";
 import "./source/MerklePatriciaProofVerifier.sol";
 import "./source/FullMath.sol";
 import "./source/UniswapV2OracleLibrary.sol";
+import "./interfaces/IFetcher.sol";
 
-contract FetcherV2 {
+contract FetcherV2 is IFetcher {
     uint256 internal constant Q128 = 1 << 128;
 	bytes32 internal constant RESERVE_TIMESTAMP_SLOT_HASH = keccak256(abi.encodePacked(uint256(8)));
 	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
@@ -16,6 +17,7 @@ contract FetcherV2 {
 
     mapping(uint256 => uint256) s_basePriceCumulative;
     mapping(uint256 => uint256) s_lastTimestamp;
+    mapping(uint256 => uint256) s_lastSubmitBlockNumber;
 
     struct ProofData {
         bytes block;
@@ -26,12 +28,12 @@ contract FetcherV2 {
 
     function fetch(
         uint256 ORACLE
-    ) external virtual view returns (uint256 twap, uint256 spot) {
+    ) override external returns (uint256 twap, uint256 spot) {
         uint32 window = uint32(ORACLE >> 192);
         uint lastTimestamp = s_lastTimestamp[ORACLE];
-        require(lastTimestamp + window >= block.timestamp, "OLD");
-        require(lastTimestamp + (window >> 1) <= block.timestamp, "NEW");
-
+        uint lastSubmitBlockNumber = s_lastSubmitBlockNumber[ORACLE];
+        require(lastSubmitBlockNumber + window >= block.number, "OLD");
+        require(lastSubmitBlockNumber + (window >> 1) <= block.number, "NEW");
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
 
@@ -43,7 +45,6 @@ contract FetcherV2 {
             (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
             (blockTimestamp - lastTimestamp)
         ) << 16;
-
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
         if (qti == 0) {
             (rb, rq) = (rq, rb);
@@ -61,15 +62,14 @@ contract FetcherV2 {
         address pair = address(uint160(ORACLE));
         (
             bytes32 storageRootHash,
-            uint256 blockNumber,
-            uint256 blockTimestamp
+            uint256 blockNumber
         ) = _getAccountStorageRoot(pair, proofData);
-        require(blockNumber > block.number - 256, "PROOF_TOO_OLD");
 
         uint32 window = uint32(ORACLE >> 192);
-        require(blockTimestamp >= block.timestamp - window, "OLD_PROOF");
-        require(blockTimestamp <= block.timestamp - (window >> 1), "NEW_PROOF");
+        require(blockNumber >= block.number - window, "OLD_PROOF");
+        require(blockNumber <= block.number - (window >> 1), "NEW_PROOF");
 
+        s_lastSubmitBlockNumber[ORACLE] = blockNumber;
         uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
             storageRootHash,
             _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
@@ -133,13 +133,14 @@ contract FetcherV2 {
         view
         returns (
             bytes32 storageRootHash,
-            uint256 blockNumber,
-            uint256 blockTimestamp
+            uint256 blockNumber
         )
     {
         bytes32 stateRoot;
-        (stateRoot, blockTimestamp, blockNumber) = BlockVerifier
+        (stateRoot, , blockNumber) = BlockVerifier
             .extractStateRootAndTimestamp(proofData.block);
+        require(blockhash(blockNumber) != 0, "blockhash = 0");
+
         bytes memory accountDetailsBytes = MerklePatriciaProofVerifier
             .extractProofValue(
                 stateRoot,
@@ -149,6 +150,6 @@ contract FetcherV2 {
         RLPReader.RLPItem[] memory accountDetails = RLPReader.toList(
             RLPReader.toRlpItem(accountDetailsBytes)
         );
-        return (bytes32(RLPReader.toUint(accountDetails[2])), blockNumber, blockTimestamp);
+        return (bytes32(RLPReader.toUint(accountDetails[2])), blockNumber);
     }
 }
