@@ -14,7 +14,9 @@ const pe = (x: any) => ethers.utils.parseEther(String(x));
     compiledUniswapRouter.abi
   );
 
-  for (let index = 0; index < 100; index++) {
+  const blocks = 100
+
+  for (let index = 0; index < blocks; index++) {
     await uniswapRouter
       .connect(signer)
       .swapExactTokensForETH(
@@ -42,4 +44,5 @@ const pe = (x: any) => ethers.utils.parseEther(String(x));
     await ethers.provider.send("evm_increaseTime", [3]);
     await ethers.provider.send("evm_mine", []);
   }
+  console.log(`Swap monkey ${blocks} blocks done!`)
 })();

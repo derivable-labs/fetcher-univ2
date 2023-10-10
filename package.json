@@ -8,10 +8,11 @@
     "clean": "rimraf ./build/ ./cache/ ./artifacts/",
     "compile": "hardhat compile",
     "build": "hardhat compile && cp artifacts/contracts/FetcherV2.sol/FetcherV2.json build/",
+    "getPrice:ganache": "npx hardhat run scripts/deploy.ganache.ts --network ganacheservice && npx hardhat run scripts/swapMonkey.ts --network ganacheservice && npx hardhat run scripts/getPrice.ts --network ganacheservice",
     "test": "npx hardhat --network ganacheservice test",
     "coverage": "hardhat coverage",
     "lint": "hardhat check",
-    "deploy:ganache": "npx hardhat run scripts/deploy.ganache.ts --network ganache"
+    "deploy:ganache": "npx hardhat run scripts/deploy.ganache.ts --network ganacheservice"
   },
   "dependencies": {
     "@keydonix/uniswap-oracle-contracts": "^1.0.6",
