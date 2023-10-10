@@ -81,6 +81,15 @@ const config: HardhatUserConfig = {
             timeout: 20000,
             chainId: 8453
         },
+        bscmainnet: {
+            url: process.env.BSC_MAINNET_PROVIDER ?? 'https://bsc-dataseed3.binance.org/',
+            accounts: [
+                process.env.MAINNET_DEPLOYER ?? '0x0000000000000000000000000000000000000000000000000000000000000001',
+            ],
+            timeout: 900000,
+            chainId: 56,
+            gasPrice: 3e9,
+        },
         ganacheservice: {
             url: 'http://127.0.0.1:8545',
             // kick balcony people guess oppose verb faint explain spoil learn that pool

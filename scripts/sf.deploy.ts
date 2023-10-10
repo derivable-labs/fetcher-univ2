@@ -1,8 +1,8 @@
 const hre = require('hardhat')
 const ethers = hre.ethers
 
-const opts = {
-    gasLimit: 10000000
+let opts: any = {
+    gasLimit: 5000000
 }
 async function main() {
     const initCodeUTR = require('../artifacts/contracts/FetcherV2.sol/FetcherV2.json').bytecode
@@ -16,6 +16,9 @@ async function main() {
     const contract = new ethers.Contract(singletonFactoryAddress, SingletonFactoryABI, provider)
     const wallet = new ethers.Wallet(hre.network.config.accounts[0], provider)
     const contractWithSigner = contract.connect(wallet)
+    if (hre.network.name === 'bscmainnet') {
+        opts.gasPrice = hre.network.config.gasPrice
+    }
     try {
         const deployTx = await contractWithSigner.deploy(initCodeUTR, saltHex, opts)
         console.log('Tx: ', deployTx.hash)
