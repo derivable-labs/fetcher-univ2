@@ -1,4 +1,4 @@
-import { Block } from './helper'
+import { Block } from './OracleSdk'
 import { FetchJsonRpc } from '@zoltu/solidity-typescript-generator-fetch-dependencies'
 import { SignerFetchRpc } from './rpc-factories'
 

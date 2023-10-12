@@ -1,9 +1,8 @@
 import { Crypto } from '@peculiar/webcrypto'
 (global as any).crypto = new Crypto()
 import hre, { ethers } from "hardhat"
-import { createMemoryRpc } from '../scripts/rpc-factories'
-import { ethGetBlockByNumber } from '../scripts/adapters'
-import { getProof } from '../scripts/helper'
+import * as OracleSdk from '../scripts/OracleSdk'
+import * as OracleSdkAdapter from '../scripts/OracleSdkAdapter'
 
 const SIDE_R = 0x00
 const SIDE_A = 0x10
@@ -197,14 +196,16 @@ describe('price', function () {
     })
     it('fetch price', async () => {
         const url = 'http://127.0.0.1:8545'
-        const gasPrice = 10n ** 9n
-        const rpc = await createMemoryRpc(url, gasPrice)
-        const blockNumber = await rpc.getBlockNumber()
+        const provider = new ethers.providers.JsonRpcProvider(url)
+        const blockNumber = await provider.getBlockNumber()
+        const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
+        const getProof = OracleSdkAdapter.getProofFactory(provider)
+        const getBlockByNumber = OracleSdkAdapter.getBlockByNumberFactory(provider)
         // get the proof from the SDK
-        const proof = await getProof(
-            rpc.getStorageAt,
-            rpc.getProof,
-            ethGetBlockByNumber.bind(undefined, rpc),
+        const proof = await OracleSdk.getProof(
+            getStorageAt,
+            getProof,
+            getBlockByNumber,
             BigInt(uniswapPool.address),
             BigInt(busd.address),
             bn(blockNumber).sub(50).toBigInt()
