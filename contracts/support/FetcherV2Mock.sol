@@ -11,8 +11,15 @@ contract FetcherV2Mock is FetcherV2 {
         uint256 blockNumber,
         uint256 timestamp
     ) public {
-        s_basePriceCumulative[ORACLE] = basePriceCumulative;
-        s_lastTimestamp[ORACLE] = timestamp;
+        uint32 window = uint32(ORACLE >> 192);
+        require(blockNumber >= block.number - window, "OLD_PROOF");
+        require(blockNumber <= block.number - (window >> 1), "NEW_PROOF");
         s_lastSubmitBlockNumber[ORACLE] = blockNumber;
+        
+        require(s_lastTimestamp[ORACLE] < timestamp, "EXIST");
+        s_lastTimestamp[ORACLE] = timestamp;
+
+        require(s_basePriceCumulative[ORACLE] < basePriceCumulative, "INVALID_PRICE");
+        s_basePriceCumulative[ORACLE] = basePriceCumulative;
     }
 }
