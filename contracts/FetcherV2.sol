@@ -23,7 +23,8 @@ contract FetcherV2 is IFetcher {
     );
 
     struct Store {
-        uint128 proofBlock;
+        bool lock;
+        uint64 proofBlock;
         uint128 dataTime;
         uint256 basePriceCumulative;
     }
@@ -35,6 +36,20 @@ contract FetcherV2 is IFetcher {
         bytes accountProofNodesRlp;
         bytes reserveAndTimestampProofNodesRlp;
         bytes priceAccumulatorProofNodesRlp;
+    }
+
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and making it call a
+     * `private` function that does the actual work.
+     */
+    modifier nonReentrant(uint ORACLE) {
+        ensureStateIntegrity(ORACLE);
+        s_store[ORACLE].lock = true;
+        _;
+        s_store[ORACLE].lock = false;
     }
 
     function fetch(
@@ -69,18 +84,17 @@ contract FetcherV2 is IFetcher {
     function submit(
         uint256 ORACLE,
         ProofData memory proofData
-    ) public virtual {
-        address pair = address(uint160(ORACLE));
+    ) public virtual nonReentrant(ORACLE) {
         (
             bytes32 storageRootHash,
             uint256 proofBlock
-        ) = _getAccountStorageRoot(pair, proofData);
+        ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
 
         {
             uint32 window = uint32(ORACLE >> 192);
             require(proofBlock >= block.number - window, "OLD_PROOF");
             require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
-            s_store[ORACLE].proofBlock = uint128(proofBlock);
+            s_store[ORACLE].proofBlock = uint64(proofBlock);
         }
     
         uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
@@ -119,7 +133,14 @@ contract FetcherV2 is IFetcher {
             basePriceCumulative
         );
     }
-    
+
+    /**
+     * @dev against read-only reentrancy
+     */
+    function ensureStateIntegrity(uint ORACLE) public view {
+        require(!s_store[ORACLE].lock, 'FetcherV2: STATE_INTEGRITY');
+    }
+
     function _decodeBytes32Nibbles(bytes32 path) internal pure returns (bytes memory nibblePath) {
 		// our input is a 32-byte path, but we have to prepend a single 0 byte to that and pass it along as a 33 byte memory array since that is what getNibbleArray wants
 		nibblePath = new bytes(33);

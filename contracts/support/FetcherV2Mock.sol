@@ -14,7 +14,7 @@ contract FetcherV2Mock is FetcherV2 {
         uint32 window = uint32(ORACLE >> 192);
         require(proofBlock >= block.number - window, "OLD_PROOF");
         require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
-        s_store[ORACLE].proofBlock = uint128(proofBlock);
+        s_store[ORACLE].proofBlock = uint64(proofBlock);
         
         require(s_store[ORACLE].dataTime <= dataTime, "OLD_DATA");
         s_store[ORACLE].dataTime = uint128(dataTime);
