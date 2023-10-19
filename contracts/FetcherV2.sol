@@ -54,7 +54,7 @@ contract FetcherV2 is IFetcher {
 
     function fetch(
         uint256 ORACLE
-    ) override external returns (uint256 twap, uint256 spot) {
+    ) override external view returns (uint256 twap, uint256 spot) {
         uint32 window = uint32(ORACLE >> 192);
         uint proofBlock = s_store[ORACLE].proofBlock;
         require(proofBlock + window >= block.number, "OLD");
