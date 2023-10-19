@@ -15,9 +15,13 @@ contract FetcherV2 is IFetcher {
 	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
 	bytes32 internal constant PRICE_CUMULATIVE_1_SLOT_HASH = keccak256(abi.encodePacked(uint256(10)));
 
-    mapping(uint256 => uint256) s_basePriceCumulative;
-    mapping(uint256 => uint256) s_lastTimestamp;
-    mapping(uint256 => uint256) s_lastSubmitBlockNumber;
+    struct Store {
+        uint128 proofBlock;
+        uint128 dataTime;
+        uint256 basePriceCumulative;
+    }
+
+    mapping(uint256 => Store) s_store;
 
     struct ProofData {
         bytes block;
@@ -30,20 +34,20 @@ contract FetcherV2 is IFetcher {
         uint256 ORACLE
     ) override external returns (uint256 twap, uint256 spot) {
         uint32 window = uint32(ORACLE >> 192);
-        uint lastTimestamp = s_lastTimestamp[ORACLE];
-        uint lastSubmitBlockNumber = s_lastSubmitBlockNumber[ORACLE];
-        require(lastSubmitBlockNumber + window >= block.number, "OLD");
-        require(lastSubmitBlockNumber + (window >> 1) <= block.number, "NEW");
+        uint proofBlock = s_store[ORACLE].proofBlock;
+        require(proofBlock + window >= block.number, "OLD");
+        require(proofBlock + (window >> 1) <= block.number, "NEW");
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
 
-        (uint basePriceCumulative, uint blockTimestamp) = UniswapV2OracleLibrary
+        (uint basePriceCumulative, uint newDataTime) = UniswapV2OracleLibrary
             .currentCumulativePrice(pair, qti);
-        require(lastTimestamp < blockTimestamp, "NOW");
+        uint dataTime = s_store[ORACLE].dataTime;
+        require(dataTime < newDataTime, "NOW");
 
         twap = (
-            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
-            (blockTimestamp - lastTimestamp)
+            (basePriceCumulative - s_store[ORACLE].basePriceCumulative) /
+            (newDataTime - dataTime)
         ) << 16;
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
         if (qti == 0) {
@@ -62,40 +66,43 @@ contract FetcherV2 is IFetcher {
         address pair = address(uint160(ORACLE));
         (
             bytes32 storageRootHash,
-            uint256 blockNumber
+            uint256 proofBlock
         ) = _getAccountStorageRoot(pair, proofData);
 
+        {
         uint32 window = uint32(ORACLE >> 192);
-        require(blockNumber >= block.number - window, "OLD_PROOF");
-        require(blockNumber <= block.number - (window >> 1), "NEW_PROOF");
-        s_lastSubmitBlockNumber[ORACLE] = blockNumber;
+        require(proofBlock >= block.number - window, "OLD_PROOF");
+        require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
+        s_store[ORACLE].proofBlock = uint128(proofBlock);
+        }
     
-        { // Stack too deep
             uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
                 storageRootHash,
                 _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
                 RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
             )));
-            uint256 timestamp = reserve0Reserve1TimestampPacked >> (112 + 112);
-            uint256 lastTimestamp = s_lastTimestamp[ORACLE];
-            require(lastTimestamp <= timestamp, "OLD_DATA");
-            if (timestamp == lastTimestamp) {
-                // no-change from the last proof, only the s_lastSubmitBlockNumber need to be updated
+            uint256 newDataTime = reserve0Reserve1TimestampPacked >> (112 + 112);
+        {
+            uint256 dataTime = s_store[ORACLE].dataTime;
+            require(dataTime <= newDataTime, "OLD_DATA");
+            if (newDataTime == dataTime) {
+                // no-change from the last proof, only the proofBlock need to be updated
                 return;
             }
-            s_lastTimestamp[ORACLE] = timestamp;
+            s_store[ORACLE].dataTime = uint128(newDataTime);
         }
 
         uint256 qti = ORACLE >> 255;
         bytes32 slotHash = qti == 1 ? PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH;
 
-        s_basePriceCumulative[ORACLE] = RLPReader.toUint(RLPReader.toRlpItem(
+        uint basePriceCumulative = RLPReader.toUint(RLPReader.toRlpItem(
             MerklePatriciaProofVerifier.extractProofValue(
                 storageRootHash,
                 _decodeBytes32Nibbles(slotHash),
                 RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
             )
         ));
+        s_store[ORACLE].basePriceCumulative = basePriceCumulative;
     }
     
     function _decodeBytes32Nibbles(bytes32 path) internal pure returns (bytes memory nibblePath) {
