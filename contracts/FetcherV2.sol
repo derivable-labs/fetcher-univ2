@@ -15,6 +15,13 @@ contract FetcherV2 is IFetcher {
 	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
 	bytes32 internal constant PRICE_CUMULATIVE_1_SLOT_HASH = keccak256(abi.encodePacked(uint256(10)));
 
+    event Submit(
+        bytes32 indexed ORACLE,
+        uint proofBlock,
+        uint dataTime,
+        uint basePriceCumulative
+    );
+
     struct Store {
         uint128 proofBlock;
         uint128 dataTime;
@@ -70,23 +77,24 @@ contract FetcherV2 is IFetcher {
         ) = _getAccountStorageRoot(pair, proofData);
 
         {
-        uint32 window = uint32(ORACLE >> 192);
-        require(proofBlock >= block.number - window, "OLD_PROOF");
-        require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
-        s_store[ORACLE].proofBlock = uint128(proofBlock);
+            uint32 window = uint32(ORACLE >> 192);
+            require(proofBlock >= block.number - window, "OLD_PROOF");
+            require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
+            s_store[ORACLE].proofBlock = uint128(proofBlock);
         }
     
-            uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
-                storageRootHash,
-                _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
-                RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-            )));
-            uint256 newDataTime = reserve0Reserve1TimestampPacked >> (112 + 112);
+        uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
+            storageRootHash,
+            _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
+            RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
+        )));
+        uint256 newDataTime = reserve0Reserve1TimestampPacked >> (112 + 112);
         {
             uint256 dataTime = s_store[ORACLE].dataTime;
             require(dataTime <= newDataTime, "OLD_DATA");
             if (newDataTime == dataTime) {
                 // no-change from the last proof, only the proofBlock need to be updated
+                emit Submit(bytes32(ORACLE), proofBlock, 0, 0);
                 return;
             }
             s_store[ORACLE].dataTime = uint128(newDataTime);
@@ -103,6 +111,13 @@ contract FetcherV2 is IFetcher {
             )
         ));
         s_store[ORACLE].basePriceCumulative = basePriceCumulative;
+
+        emit Submit(
+            bytes32(ORACLE),
+            proofBlock,
+            newDataTime,
+            basePriceCumulative
+        );
     }
     
     function _decodeBytes32Nibbles(bytes32 path) internal pure returns (bytes memory nibblePath) {
