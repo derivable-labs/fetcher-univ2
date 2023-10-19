@@ -78,6 +78,11 @@ contract FetcherV2 is IFetcher {
         spot = FullMath.mulDiv(Q128, rq, rb);
     }
 
+    function clear(uint256 ORACLE) external virtual {
+        ensureStateIntegrity(ORACLE);
+        delete s_store[ORACLE];
+    }
+
     // This function verifies the full block is old enough (MIN_BLOCK_COUNT),
     // not too old (or blockhash will return 0x0) and return the proof values
     // for the two storage slots we care about
