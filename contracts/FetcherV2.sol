@@ -68,16 +68,23 @@ contract FetcherV2 is IFetcher {
         uint32 window = uint32(ORACLE >> 192);
         require(blockNumber >= block.number - window, "OLD_PROOF");
         require(blockNumber <= block.number - (window >> 1), "NEW_PROOF");
-
         s_lastSubmitBlockNumber[ORACLE] = blockNumber;
-        uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
-            storageRootHash,
-            _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
-            RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-        )));
-        require(s_lastTimestamp[ORACLE] < reserve0Reserve1TimestampPacked >> (112 + 112), "EXIST");
-        // TODO: require(lastTimestamp + window / 2 < block.timestamp, "PROOF_TOO_NEW");
-        s_lastTimestamp[ORACLE] = reserve0Reserve1TimestampPacked >> (112 + 112);
+    
+        { // Stack too deep
+            uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
+                storageRootHash,
+                _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
+                RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
+            )));
+            uint256 timestamp = reserve0Reserve1TimestampPacked >> (112 + 112);
+            uint256 lastTimestamp = s_lastTimestamp[ORACLE];
+            require(lastTimestamp <= timestamp, "OLD_DATA");
+            if (timestamp == lastTimestamp) {
+                // no-change from the last proof, only the s_lastSubmitBlockNumber need to be updated
+                return;
+            }
+            s_lastTimestamp[ORACLE] = timestamp;
+        }
 
         uint256 qti = ORACLE >> 255;
         bytes32 slotHash = qti == 1 ? PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH;
