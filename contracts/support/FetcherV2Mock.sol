@@ -17,9 +17,11 @@ contract FetcherV2Mock is FetcherV2 {
         s_store[ORACLE].proofBlock = uint64(proofBlock);
         
         require(s_store[ORACLE].dataTime <= dataTime, "OLD_DATA");
-        s_store[ORACLE].dataTime = uint128(dataTime);
+        if (s_store[ORACLE].dataTime < dataTime) {
+            s_store[ORACLE].dataTime = uint128(dataTime);
 
-        require(s_store[ORACLE].basePriceCumulative < basePriceCumulative, "INVALID_PRICE");
-        s_store[ORACLE].basePriceCumulative = basePriceCumulative;
+            require(s_store[ORACLE].basePriceCumulative < basePriceCumulative, "INVALID_PRICE");
+            s_store[ORACLE].basePriceCumulative = basePriceCumulative;
+        }
     }
 }
