@@ -4,14 +4,17 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
-import "@nomiclabs/hardhat-ganache"
+import "@nomiclabs/hardhat-ganache";
+import dotenv from 'dotenv';
+
+dotenv.config({ path: __dirname + "/.env" });
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'ganache',
     solidity: {
         compilers: [
             {
-                version: "0.6.8",
+                version: "0.6.12",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -77,6 +80,15 @@ const config: HardhatUserConfig = {
             ],
             timeout: 20000,
             chainId: 8453
+        },
+        bscmainnet: {
+            url: process.env.BSC_MAINNET_PROVIDER ?? 'https://bsc-dataseed3.binance.org/',
+            accounts: [
+                process.env.MAINNET_DEPLOYER ?? '0x0000000000000000000000000000000000000000000000000000000000000001',
+            ],
+            timeout: 900000,
+            chainId: 56,
+            gasPrice: 3e9,
         },
         ganacheservice: {
             url: 'http://127.0.0.1:8545',
