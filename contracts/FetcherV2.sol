@@ -49,7 +49,7 @@ contract FetcherV2 is IFetcher {
         ensureStateIntegrity(ORACLE);
         s_store[ORACLE].lock = true;
         _;
-        s_store[ORACLE].lock = false;
+        delete s_store[ORACLE].lock;
     }
 
     function fetch(
