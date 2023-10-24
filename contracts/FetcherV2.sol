@@ -89,8 +89,8 @@ contract FetcherV2 is IFetcher {
     // for the two storage slots we care about
     function submit(
         uint256 ORACLE,
-        ProofData memory proofData
-    ) public virtual nonReentrant(ORACLE) {
+        ProofData calldata proofData
+    ) external virtual nonReentrant(ORACLE) {
         (
             bytes32 storageRootHash,
             uint256 proofBlock
@@ -183,7 +183,7 @@ contract FetcherV2 is IFetcher {
 
     function _getAccountStorageRoot(
         address uniswapV2Pair,
-        ProofData memory proofData
+        ProofData calldata proofData
     )
         internal
         view
