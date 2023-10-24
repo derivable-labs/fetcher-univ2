@@ -73,11 +73,6 @@ describe('price', function () {
         const pairAddresses = await uniswapFactory.allPairs(0)
         uniswapPool = new ethers.Contract(pairAddresses, require("@uniswap/v2-core/build/UniswapV2Pair.json").abi, signer)
         console.log('uniswapPool: ', uniswapPool.address)
-        // deploy PriceEmitter
-        const PriceEmitter = await ethers.getContractFactory("PriceEmitter")
-        const priceEmitter = await PriceEmitter.deploy()
-        await priceEmitter.deployed()
-        console.log('priceEmitter: ', priceEmitter.address)
         // deploy FetcherV2
         const FetcherV2 = await ethers.getContractFactory("FetcherV2")
         fetcherV2 = await FetcherV2.deploy()

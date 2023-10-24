@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.8;
+pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "@keydonix/uniswap-oracle-contracts/source/BlockVerifier.sol";
+import "./source/BlockVerifier.sol";
 import "solidity-rlp/contracts/RLPReader.sol";
 import "./source/MerklePatriciaProofVerifier.sol";
 import "./source/FullMath.sol";

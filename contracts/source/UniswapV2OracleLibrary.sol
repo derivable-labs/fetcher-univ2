@@ -1,7 +1,16 @@
-pragma solidity >=0.5.0;
+pragma solidity 0.6.12;
 
-import "@keydonix/uniswap-oracle-contracts/source/IUniswapV2Pair.sol";
 import "./FullMath.sol";
+
+interface IUniswapV2Pair {
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+
+    function price0CumulativeLast() external view returns (uint256);
+    function price1CumulativeLast() external view returns (uint256);
+
+	function getReserves() external view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast);
+}
 
 // library with helper methods for oracles that are concerned with computing average prices
 library UniswapV2OracleLibrary {
