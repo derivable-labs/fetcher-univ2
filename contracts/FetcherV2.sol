@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.20;
 pragma experimental ABIEncoderV2;
 
 import "./source/BlockVerifier.sol";
@@ -163,7 +163,7 @@ contract FetcherV2 is IFetcher {
 		uint8 hpNibble = uint8(_getNthNibbleOfBytes(0,byteArray));
 		if(hpNibble == 1 || hpNibble == 3) {
 			nibbleArray = new bytes(byteArray.length*2-1);
-			byte oddNibble = _getNthNibbleOfBytes(1,byteArray);
+			bytes1 oddNibble = _getNthNibbleOfBytes(1,byteArray);
 			nibbleArray[0] = oddNibble;
 			offset = 1;
 		} else {
@@ -177,8 +177,8 @@ contract FetcherV2 is IFetcher {
 		return nibbleArray;
 	}
 
-	function _getNthNibbleOfBytes(uint n, bytes memory str) private pure returns (byte) {
-		return byte(n%2==0 ? uint8(str[n/2])/0x10 : uint8(str[n/2])%0x10);
+	function _getNthNibbleOfBytes(uint n, bytes memory str) private pure returns (bytes1) {
+		return bytes1(n%2==0 ? uint8(str[n/2])/0x10 : uint8(str[n/2])%0x10);
 	}
 
     function _getAccountStorageRoot(

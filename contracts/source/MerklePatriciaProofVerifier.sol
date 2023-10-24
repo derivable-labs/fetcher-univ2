@@ -4,7 +4,7 @@
  * Copied from https://github.com/lidofinance/curve-merkle-oracle/blob/main/contracts/MerklePatriciaProofVerifier.sol
  * with minor changes to adapt to our code.
  */
-pragma solidity 0.6.12;
+pragma solidity 0.8.20;
 
 import {RLPReader} from "solidity-rlp/contracts/RLPReader.sol";
 

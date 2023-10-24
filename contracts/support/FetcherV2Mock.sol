@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.20;
 pragma experimental ABIEncoderV2;
 
 import "../FetcherV2.sol";
@@ -10,7 +10,7 @@ contract FetcherV2Mock is FetcherV2 {
         uint256 basePriceCumulative,
         uint256 proofBlock,
         uint256 dataTime
-    ) public {
+    ) external {
         uint32 window = uint32(ORACLE >> 192);
         require(proofBlock >= block.number - window, "OLD_PROOF");
         require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
