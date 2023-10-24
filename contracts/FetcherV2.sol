@@ -26,10 +26,10 @@ contract FetcherV2 is IFetcher {
         bool lock;
         uint64 proofBlock;
         uint128 dataTime;
-        uint256 basePriceCumulative;
     }
 
     mapping(uint256 => Store) s_store;
+    mapping(uint256 => uint256) s_basePriceCumulative;
 
     struct ProofData {
         bytes block;
@@ -68,7 +68,7 @@ contract FetcherV2 is IFetcher {
         require(dataTime < newDataTime, "NOW");
 
         twap = (
-            (basePriceCumulative - s_store[ORACLE].basePriceCumulative) /
+            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
             (newDataTime - dataTime)
         ) << 16;
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
@@ -81,6 +81,7 @@ contract FetcherV2 is IFetcher {
     function clear(uint256 ORACLE) external virtual {
         ensureStateIntegrity(ORACLE);
         delete s_store[ORACLE];
+        delete s_basePriceCumulative[ORACLE];
     }
 
     // This function verifies the full block is old enough (MIN_BLOCK_COUNT),
@@ -129,7 +130,7 @@ contract FetcherV2 is IFetcher {
                 RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
             )
         ));
-        s_store[ORACLE].basePriceCumulative = basePriceCumulative;
+        s_basePriceCumulative[ORACLE] = basePriceCumulative;
 
         emit Submit(
             bytes32(ORACLE),
