@@ -12,6 +12,7 @@
     "test": "npx hardhat --network ganacheservice test",
     "coverage": "hardhat coverage",
     "lint": "hardhat check",
+    "deploy": "npx hardhat run scripts/sf.deploy.ts",
     "deploy:ganache": "npx hardhat run scripts/deploy.ganache.ts --network ganacheservice"
   },
   "dependencies": {

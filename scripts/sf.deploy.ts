@@ -5,7 +5,7 @@ let opts: any = {
     gasLimit: 5000000
 }
 async function main() {
-    const initCodeUTR = require('../artifacts/contracts/FetcherV2.sol/FetcherV2.json').bytecode
+    const bytecode = require('../artifacts/contracts/FetcherV2.sol/FetcherV2.json').bytecode
     const salt = 0
     const saltHex = ethers.utils.hexZeroPad(ethers.utils.hexlify(salt), 32)
     const SingletonFactoryABI = require('./abi/SingletonFactoryABI.json')
@@ -16,16 +16,16 @@ async function main() {
     const contract = new ethers.Contract(singletonFactoryAddress, SingletonFactoryABI, provider)
     const wallet = new ethers.Wallet(hre.network.config.accounts[0], provider)
     const contractWithSigner = contract.connect(wallet)
-    if (hre.network.name === 'bscmainnet') {
-        opts.gasPrice = hre.network.config.gasPrice
-    }
+    opts.gasPrice = hre.network.config.gasPrice
+    console.log(wallet.address, opts)
     try {
-        const deployTx = await contractWithSigner.deploy(initCodeUTR, saltHex, opts)
+        const deployTx = await contractWithSigner.deploy(bytecode, saltHex, opts)
         console.log('Tx: ', deployTx.hash)
         const res = await deployTx.wait(1)
         console.log('Result: ', res)
-    } catch (error) {
-        console.log('Error: ', error)
+    } catch (err) {
+        // @ts-ignore
+        console.error('Error:', err?.reason ?? err)
     }
 }
 
