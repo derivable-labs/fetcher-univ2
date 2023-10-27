@@ -1,5 +1,11 @@
+import { ethers } from 'ethers'
+
 export function addressToString(value: bigint) {
 	return `0x${value.toString(16).padStart(40, '0')}`
+}
+
+export function stringToAddress(value: string) {
+	return ethers.utils.getAddress(`0x${value.substring(26, 66)}`)
 }
 
 export function stripLeadingZeros(byteArray: Uint8Array): Uint8Array {
@@ -25,5 +31,14 @@ export function unsignedIntegerToUint8Array(value: bigint | number, widthInBytes
 	for (let i = 0; i < result.length; ++i) {
 		result[i] = Number((value >> BigInt((widthInBytes - i) * 8 - 8)) & 0xffn)
 	}
+	return result
+}
+
+export function hexStringToUint8Array(value: string) {
+	value = value.substring(2)
+	if (value.length % 2 != 0) {
+        value = '0' + value;
+    }
+	const result = Uint8Array.from(Buffer.from(value, 'hex'));
 	return result
 }
