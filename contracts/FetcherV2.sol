@@ -2,6 +2,7 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/introspection/ERC165.sol";
 import "./source/BlockVerifier.sol";
 import "solidity-rlp/contracts/RLPReader.sol";
 import "./source/MerklePatriciaProofVerifier.sol";
@@ -9,7 +10,7 @@ import "./source/FullMath.sol";
 import "./source/UniswapV2OracleLibrary.sol";
 import "./interfaces/IFetcher.sol";
 
-contract FetcherV2 is IFetcher {
+contract FetcherV2 is IFetcher, ERC165 {
     uint256 internal constant Q128 = 1 << 128;
 	bytes32 internal constant RESERVE_TIMESTAMP_SLOT_HASH = keccak256(abi.encodePacked(uint256(8)));
 	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
@@ -207,5 +208,12 @@ contract FetcherV2 is IFetcher {
             RLPReader.toRlpItem(accountDetailsBytes)
         );
         return (bytes32(RLPReader.toUint(accountDetails[2])), blockNumber);
+    }
+
+    // IERC165-supportsInterface
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == 0x61206120 ||
+            super.supportsInterface(interfaceId);
     }
 }
