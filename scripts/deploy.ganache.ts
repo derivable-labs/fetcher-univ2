@@ -43,11 +43,6 @@ async function main() {
     const pairAddresses = await uniswapFactory.allPairs(0)
     const uniswapPool = new ethers.Contract(pairAddresses, require("@uniswap/v2-core/build/UniswapV2Pair.json").abi, signer)
     console.log('uniswapPool: ', uniswapPool.address)
-    // deploy PriceEmitter
-    const PriceEmitter = await ethers.getContractFactory("PriceEmitter")
-    const priceEmitter = await PriceEmitter.deploy()
-    await priceEmitter.deployed()
-    console.log('priceEmitter: ', priceEmitter.address)
 
     // deploy FetcherV2
     const FetcherV2 = await ethers.getContractFactory("FetcherV2")
@@ -61,7 +56,6 @@ async function main() {
         uniswapFactory: uniswapFactory.address,
         uniswapRouter: uniswapRouter.address,
         uniswapPool: uniswapPool.address,
-        priceEmitter: priceEmitter.address,
         fetcherV2: fetcherV2.address
     }))
     console.log('doneeee')
