@@ -9,8 +9,12 @@ import "./source/MerklePatriciaProofVerifier.sol";
 import "./source/FullMath.sol";
 import "./source/UniswapV2OracleLibrary.sol";
 import "./interfaces/IFetcher.sol";
+import "./source/Oracle.sol";
 
 contract FetcherV2 is IFetcher, ERC165 {
+
+    using Oracle for Oracle.Observation[30];
+
     uint256 internal constant Q128 = 1 << 128;
 	bytes32 internal constant RESERVE_TIMESTAMP_SLOT_HASH = keccak256(abi.encodePacked(uint256(8)));
 	bytes32 internal constant PRICE_CUMULATIVE_0_SLOT_HASH = keccak256(abi.encodePacked(uint256(9)));
@@ -23,14 +27,16 @@ contract FetcherV2 is IFetcher, ERC165 {
         uint basePriceCumulative
     );
 
-    struct Store {
+    struct Slot0 {
         bool lock;
+        uint16 observationIndex;
         uint64 proofBlock;
         uint128 dataTime;
+        uint256 basePriceCumulative;
     }
 
-    mapping(uint256 => Store) s_store;
-    mapping(uint256 => uint256) s_basePriceCumulative;
+    mapping(uint256 => Slot0) s_store;
+    // mapping(uint256 => uint256) s_basePriceCumulative;
 
     struct ProofData {
         bytes block;
@@ -38,6 +44,8 @@ contract FetcherV2 is IFetcher, ERC165 {
         bytes reserveAndTimestampProofNodesRlp;
         bytes priceAccumulatorProofNodesRlp;
     }
+
+    Oracle.Observation[30] public observations;
 
     /**
      * @dev Prevents a contract from calling itself, directly or indirectly.
@@ -57,7 +65,7 @@ contract FetcherV2 is IFetcher, ERC165 {
         uint256 ORACLE
     ) override external view returns (uint256 twap, uint256 spot) {
         uint32 window = uint32(ORACLE >> 192);
-        uint proofBlock = s_store[ORACLE].proofBlock;
+        uint proofBlock = observations[s_store[ORACLE].observationIndex].proofBlock;
         require(proofBlock + window >= block.number, "OLD");
         require(proofBlock + (window >> 1) <= block.number, "NEW");
         address pair = address(uint160(ORACLE));
@@ -65,11 +73,11 @@ contract FetcherV2 is IFetcher, ERC165 {
 
         (uint basePriceCumulative, uint newDataTime) = UniswapV2OracleLibrary
             .currentCumulativePrice(pair, qti);
-        uint dataTime = s_store[ORACLE].dataTime;
+        uint dataTime = observations[s_store[ORACLE].observationIndex].dataTime;
         require(dataTime < newDataTime, "NOW");
 
         twap = (
-            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
+            (basePriceCumulative - observations[s_store[ORACLE].observationIndex].price) /
             (newDataTime - dataTime)
         ) << 16;
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
@@ -82,7 +90,7 @@ contract FetcherV2 is IFetcher, ERC165 {
     function clear(uint256 ORACLE) external virtual {
         ensureStateIntegrity(ORACLE);
         delete s_store[ORACLE];
-        delete s_basePriceCumulative[ORACLE];
+        // delete s_basePriceCumulative[ORACLE];
     }
 
     // This function verifies the full block is old enough (MIN_BLOCK_COUNT),
@@ -131,7 +139,22 @@ contract FetcherV2 is IFetcher, ERC165 {
                 RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
             )
         ));
-        s_basePriceCumulative[ORACLE] = basePriceCumulative;
+        // s_basePriceCumulative[ORACLE] = basePriceCumulative;
+
+        // write slot0 to observations
+        Slot0 memory _slot0 = s_store[ORACLE];
+        uint16 observationIndex = _slot0.observationIndex;
+        uint16 indexUpdated = observations.write(
+            observationIndex,
+            uint32(block.timestamp),
+            basePriceCumulative,
+            uint64(proofBlock),
+            uint128(newDataTime)
+        );
+        if (indexUpdated != observationIndex) {
+            _slot0.observationIndex = indexUpdated;
+            s_store[ORACLE] = _slot0;
+        }
 
         emit Submit(
             bytes32(ORACLE),
