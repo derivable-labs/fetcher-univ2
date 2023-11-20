@@ -22,6 +22,38 @@ function feeToOpenRate(fee: any) {
     return bn(((1-fee)*10000).toFixed(0)).shl(128).div(10000)
 }
 
+async function swapMonkey(uniswapRouter: any, signer: any, weth: any, busd: any, owner: any, blocks: number) {
+    // swap monkey
+    for (let index = 0; index < blocks; index++) {
+        await uniswapRouter
+            .connect(signer)
+            .swapExactTokensForETH(
+                pe(Math.floor(Math.random() * 11) + 1),
+                0,
+                [busd.address, weth.address],
+                owner.address,
+                100000000000000,
+                {gasLimit: 5000000}
+            )
+        await ethers.provider.send("evm_increaseTime", [3])
+        await ethers.provider.send("evm_mine", [])
+        await uniswapRouter
+            .connect(signer)
+            .swapExactETHForTokens(
+                0,
+                [weth.address, busd.address],
+                owner.address,
+                100000000000000,
+                {
+                    value: pe(Math.floor(Math.random() * 11) + 1),
+                    gasLimit: 5000000
+                }
+            )
+        await ethers.provider.send("evm_increaseTime", [3])
+        await ethers.provider.send("evm_mine", [])
+    }
+}
+
 describe('price', function () {
     let uniswapPool: any
     let fetcherV2: any
@@ -31,11 +63,14 @@ describe('price', function () {
     let poolAddress: any
     let recipient: any
     let utr: any
+    let signer: any
+    let owner: any
+    let uniswapRouter: any
 
     beforeEach(async function() {
         // deploy uniswap v2
-        const [owner] = await ethers.getSigners()
-        const signer = owner
+        [owner] = await ethers.getSigners()
+        signer = owner
         recipient = owner
         // weth test
         const compiledWETH = require("canonical-weth/build/contracts/WETH9.json")
@@ -56,7 +91,7 @@ describe('price', function () {
         console.log('weth: ', weth.address)
         const uniswapFactory = await UniswapFactory.deploy(busd.address)
         console.log('uniswapFactory: ', uniswapFactory.address)
-        const uniswapRouter = await UniswapRouter.deploy(uniswapFactory.address, weth.address)
+        uniswapRouter = await UniswapRouter.deploy(uniswapFactory.address, weth.address)
         console.log('uniswapRouter: ', uniswapRouter.address)
         await busd.approve(uniswapRouter.address, ethers.constants.MaxUint256)
         await uniswapRouter.addLiquidityETH(
@@ -116,7 +151,7 @@ describe('price', function () {
         const oracle = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
-                .add(bn(100).shl(256 - 64))
+                .add(bn(30).shl(256 - 64))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
@@ -159,35 +194,7 @@ describe('price', function () {
         await weth.approve(poolAddress, ethers.constants.MaxUint256)
         await pool.init(state, payment)
 
-        // swap monkey
-        for (let index = 0; index < 100; index++) {
-            await uniswapRouter
-                .connect(signer)
-                .swapExactTokensForETH(
-                    pe(Math.floor(Math.random() * 11) + 1),
-                    0,
-                    [busd.address, weth.address],
-                    owner.address,
-                    100000000000000,
-                    {gasLimit: 5000000}
-                )
-            await ethers.provider.send("evm_increaseTime", [3])
-            await ethers.provider.send("evm_mine", [])
-            await uniswapRouter
-                .connect(signer)
-                .swapExactETHForTokens(
-                    0,
-                    [weth.address, busd.address],
-                    owner.address,
-                    100000000000000,
-                    {
-                        value: pe(Math.floor(Math.random() * 11) + 1),
-                        gasLimit: 5000000
-                    }
-                )
-            await ethers.provider.send("evm_increaseTime", [3])
-            await ethers.provider.send("evm_mine", [])
-        }
+        await swapMonkey(uniswapRouter, signer, weth, busd, owner, 100)
     })
     it('fetch price', async () => {
         const url = 'http://127.0.0.1:8545'
@@ -203,7 +210,7 @@ describe('price', function () {
             getBlockByNumber,
             BigInt(uniswapPool.address),
             BigInt(busd.address),
-            bn(blockNumber).sub(50).toBigInt()
+            bn(blockNumber).sub(15).toBigInt()
         )
         // Connect to the network
         const contractWithSigner = fetcherV2
@@ -212,7 +219,7 @@ describe('price', function () {
         const index = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
-                .add(bn(100).shl(256 - 64))
+                .add(bn(30).shl(256 - 64))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
@@ -223,6 +230,31 @@ describe('price', function () {
         ).wait()
         console.log(receipt)
 
+        await weth.deposit({value: numberToWei(0.0001)})
+        await weth.approve(utr.address, ethers.constants.MaxUint256)
+        await utr.exec([], [{
+            inputs: [{
+                mode: PAYMENT,
+                eip: 20,
+                token: weth.address,
+                id: 0,
+                amountIn: numberToWei(0.0001),
+                recipient: poolAddress,
+            }],
+            code: stateCalHelper.address,
+            data: (await stateCalHelper.populateTransaction.swap({
+                sideIn: SIDE_R,
+                poolIn: poolAddress,
+                sideOut: SIDE_B,
+                poolOut: poolAddress,
+                amountIn: numberToWei(0.0001),
+                payer: recipient.address,
+                recipient: recipient.address,
+                INDEX_R: 0
+            })).data,
+        }], {gasLimit: 5000000})
+
+        await swapMonkey(uniswapRouter, signer, weth, busd, owner, 10)
         await weth.deposit({value: numberToWei(0.0001)})
         await weth.approve(utr.address, ethers.constants.MaxUint256)
         await utr.exec([], [{

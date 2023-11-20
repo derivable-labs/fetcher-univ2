@@ -64,10 +64,8 @@ contract FetcherV2 is IFetcher, ERC165 {
     function fetch(
         uint256 ORACLE
     ) override external returns (uint256 twap, uint256 spot) {
-        uint32 window = uint32(ORACLE >> 192);
-        // uint proofBlock = observations[s_store[ORACLE].observationIndex].proofBlock;
-        // require(proofBlock + window >= block.number, "OLD");
-        // require(proofBlock + (window >> 1) <= block.number, "NEW");
+        uint32 window_max = uint32(ORACLE >> 192);
+        uint32 window = window_max >> 1;
 
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
@@ -79,7 +77,7 @@ contract FetcherV2 is IFetcher, ERC165 {
         uint16 foundIndex = s_observations_store[ORACLE].find(window);
         // write slot0 to observations
         Slot0 memory _slot0 = s_store[ORACLE];
-        writeToObservations(_slot0, ORACLE, basePriceCumulative);
+        writeToObservations(_slot0, ORACLE, basePriceCumulative, uint64(block.number));
 
         uint dataTime = s_observations_store[ORACLE][foundIndex].dataTime;
         require(dataTime < newDataTime, "NOW");
@@ -101,12 +99,12 @@ contract FetcherV2 is IFetcher, ERC165 {
         // delete s_basePriceCumulative[ORACLE];
     }
 
-    function writeToObservations(Slot0 memory _slot0, uint256 ORACLE, uint basePriceCumulative) internal virtual{
+    function writeToObservations(Slot0 memory _slot0, uint256 ORACLE, uint basePriceCumulative, uint64 proofBlock) internal virtual{
         uint16 observationIndex = _slot0.observationIndex;
         uint16 indexUpdated = s_observations_store[ORACLE].write(
             observationIndex,
             basePriceCumulative,
-            uint64(block.number),
+            proofBlock,
             _slot0.dataTime
         );
         if (indexUpdated != observationIndex) {
@@ -128,9 +126,10 @@ contract FetcherV2 is IFetcher, ERC165 {
         ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
 
         {
-            uint32 window = uint32(ORACLE >> 192);
-            require(proofBlock >= block.number - window, "OLD_PROOF");
-            require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
+            uint32 window_max = uint32(ORACLE >> 192);
+            uint32 window = window_max >> 1;
+            require(block.number - proofBlock >= window, "NEW_PROOF");
+            require(block.number - proofBlock  <= window_max, "OLD_PROOF");
             s_store[ORACLE].proofBlock = uint64(proofBlock);
         }
     
@@ -165,7 +164,7 @@ contract FetcherV2 is IFetcher, ERC165 {
 
         // write slot0 to observations
         Slot0 memory _slot0 = s_store[ORACLE];
-        writeToObservations(_slot0, ORACLE, basePriceCumulative);
+        writeToObservations(_slot0, ORACLE, basePriceCumulative, _slot0.proofBlock);
 
         emit Submit(
             bytes32(ORACLE),

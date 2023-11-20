@@ -6,6 +6,7 @@ library Oracle {
         uint256 price;
         uint64 proofBlock;
         uint128 dataTime;
+        bool initialized;
     }
 
     function write(
@@ -15,13 +16,23 @@ library Oracle {
         uint64 proofBlock,
         uint128 dataTime
     ) internal returns (uint16 indexUpdated) {
+        if (!self[0].initialized) {
+            self[0] = Observation({
+                price: price,
+                proofBlock: proofBlock,
+                dataTime: dataTime,
+                initialized: true
+            });
+            return 0;
+        }
         Observation memory last = self[index];
         if (last.proofBlock == proofBlock) return index;
         indexUpdated = (index + 1) % 30;
         self[indexUpdated] = Observation({
             price: price,
             proofBlock: proofBlock,
-            dataTime: dataTime
+            dataTime: dataTime,
+            initialized: true
         });
     }
 
