@@ -67,7 +67,7 @@ describe('price', function () {
     let owner: any
     let uniswapRouter: any
 
-    beforeEach(async function() {
+    before(async function() {
         // deploy uniswap v2
         [owner] = await ethers.getSigners()
         signer = owner
@@ -196,10 +196,11 @@ describe('price', function () {
 
         await swapMonkey(uniswapRouter, signer, weth, busd, owner, 100)
     })
-    it('fetch price', async () => {
+    it('submit proof and fetch price', async () => {
         const url = 'http://127.0.0.1:8545'
         const provider = new ethers.providers.JsonRpcProvider(url)
         const blockNumber = await provider.getBlockNumber()
+        console.log("blockNumber: ", blockNumber)
         const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
         const getProof = OracleSdkAdapter.getProofFactory(provider)
         const getBlockByNumber = OracleSdkAdapter.getBlockByNumberFactory(provider)
@@ -229,6 +230,21 @@ describe('price', function () {
             await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
         ).wait()
         console.log(receipt)
+        
+        for (let i = 0; i < 30; i++) {
+            let bNum = await provider.getBlockNumber()
+            let proof1 = await OracleSdk.getProof(
+                getStorageAt,
+                getProof,
+                getBlockByNumber,
+                BigInt(uniswapPool.address),
+                BigInt(busd.address),
+                bn(bNum).sub(15).toBigInt()
+            )
+            console.log(`blockNumber ${i}: ${bNum - 15}`)
+            let txSubmit = await contractWithSigner.submit(index, proof1, {gasLimit: 5000000})
+            await txSubmit.wait()
+        }
 
         await weth.deposit({value: numberToWei(0.0001)})
         await weth.approve(utr.address, ethers.constants.MaxUint256)
@@ -253,7 +269,9 @@ describe('price', function () {
                 INDEX_R: 0
             })).data,
         }], {gasLimit: 5000000})
+    })
 
+    it('fetch price after swap monkey', async () => {
         await swapMonkey(uniswapRouter, signer, weth, busd, owner, 10)
         await weth.deposit({value: numberToWei(0.0001)})
         await weth.approve(utr.address, ethers.constants.MaxUint256)
@@ -278,5 +296,57 @@ describe('price', function () {
                 INDEX_R: 0
             })).data,
         }], {gasLimit: 5000000})
+    })
+
+    it('check amount of the gas fee refund', async () => {
+        await swapMonkey(uniswapRouter, signer, weth, busd, owner, 30)
+        // transfer native eth to fetcher contract
+        const url = 'http://127.0.0.1:8545'
+        const provider = new ethers.providers.JsonRpcProvider(url)
+        // const wallet = new ethers.Wallet('60f5906de1edfc4d14eb4aea49ed4c06641bbdbd5a56092392308e9730598373', provider)
+        let transaction = {
+            to: fetcherV2.address,
+            value: ethers.utils.parseEther('1.0'),
+            gasLimit: 5000000
+        };
+        await owner.sendTransaction(transaction)
+        const before = await provider.getBalance(fetcherV2.address)
+        console.log('FetcherV2 balance before: ', before)
+        const blockNumber = await provider.getBlockNumber()
+        const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
+        const getProof = OracleSdkAdapter.getProofFactory(provider)
+        const getBlockByNumber = OracleSdkAdapter.getBlockByNumberFactory(provider)
+        // get the proof from the SDK
+        const proof = await OracleSdk.getProof(
+            getStorageAt,
+            getProof,
+            getBlockByNumber,
+            BigInt(uniswapPool.address),
+            BigInt(busd.address),
+            bn(blockNumber).sub(15).toBigInt()
+        )
+        // submit proof
+        const quoteTokenIndex =
+            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
+        const index = ethers.utils.hexZeroPad(
+            bn(quoteTokenIndex)
+                .shl(255)
+                .add(bn(30).shl(256 - 64))
+                .add(uniswapPool.address)
+                .toHexString(),
+            32
+        )
+        const tx = await fetcherV2.submit(index, proof, {gasLimit: 5000000})
+        const receipt = await tx.wait()
+        // check the gas fee refund
+        const gasUsed = receipt.gasUsed
+        const gasPrice = receipt.effectiveGasPrice
+        const gasFee = gasUsed.mul(gasPrice)
+        console.log('Gas Used: ', gasUsed)
+        console.log('Gas Price: ', gasPrice)
+        console.log('Gas Fee: ', gasFee)
+
+        const after = await provider.getBalance(fetcherV2.address)
+        console.log('FetcherV2 balance used: ', before.sub(after))
     })
 })
