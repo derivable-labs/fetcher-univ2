@@ -5,6 +5,8 @@ pragma experimental ABIEncoderV2;
 import "../FetcherV2.sol";
 
 contract FetcherV2Mock is FetcherV2 {
+    constructor(uint16 _observationCardinality, uint64 _interval) public FetcherV2(_observationCardinality, _interval) {}
+
     function submitPrice(
         uint256 ORACLE,
         uint256 basePriceCumulative,

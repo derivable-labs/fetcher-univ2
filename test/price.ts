@@ -1,8 +1,9 @@
 import { Crypto } from '@peculiar/webcrypto'
 (global as any).crypto = new Crypto()
-import hre, { ethers } from "hardhat"
+import { ethers } from "hardhat"
 import * as OracleSdk from '../scripts/OracleSdk'
 import * as OracleSdkAdapter from '../scripts/OracleSdkAdapter'
+import { expect } from "chai"
 
 const SIDE_R = 0x00
 const SIDE_A = 0x10
@@ -24,6 +25,7 @@ function feeToOpenRate(fee: any) {
 
 async function swapMonkey(uniswapRouter: any, signer: any, weth: any, busd: any, owner: any, blocks: number) {
     // swap monkey
+    blocks = Math.ceil(blocks / 4)
     for (let index = 0; index < blocks; index++) {
         await uniswapRouter
             .connect(signer)
@@ -110,7 +112,11 @@ describe('price', function () {
         console.log('uniswapPool: ', uniswapPool.address)
         // deploy FetcherV2
         const FetcherV2 = await ethers.getContractFactory("FetcherV2")
-        fetcherV2 = await FetcherV2.deploy()
+        // {observationCardinality, interval}
+        fetcherV2 = await FetcherV2.deploy(
+            30,
+            10
+        )
         await fetcherV2.deployed()
         console.log('fetcherV2: ', fetcherV2.address)
 
@@ -200,7 +206,6 @@ describe('price', function () {
         const url = 'http://127.0.0.1:8545'
         const provider = new ethers.providers.JsonRpcProvider(url)
         const blockNumber = await provider.getBlockNumber()
-        console.log("blockNumber: ", blockNumber)
         const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
         const getProof = OracleSdkAdapter.getProofFactory(provider)
         const getBlockByNumber = OracleSdkAdapter.getBlockByNumberFactory(provider)
@@ -226,25 +231,7 @@ describe('price', function () {
             32
         )
         console.log(index)
-        const receipt = await (
-            await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
-        ).wait()
-        console.log(receipt)
-        
-        for (let i = 0; i < 30; i++) {
-            let bNum = await provider.getBlockNumber()
-            let proof1 = await OracleSdk.getProof(
-                getStorageAt,
-                getProof,
-                getBlockByNumber,
-                BigInt(uniswapPool.address),
-                BigInt(busd.address),
-                bn(bNum).sub(15).toBigInt()
-            )
-            console.log(`blockNumber ${i}: ${bNum - 15}`)
-            let txSubmit = await contractWithSigner.submit(index, proof1, {gasLimit: 5000000})
-            await txSubmit.wait()
-        }
+        await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
 
         await weth.deposit({value: numberToWei(0.0001)})
         await weth.approve(utr.address, ethers.constants.MaxUint256)
@@ -269,6 +256,40 @@ describe('price', function () {
                 INDEX_R: 0
             })).data,
         }], {gasLimit: 5000000})
+
+        // ---interval test---
+        await fetcherV2.fetch(index)
+        const pBlockBefore = (await fetcherV2.s_store(index)).proofBlock
+        // blocks > 10 need to update proof
+        await swapMonkey(uniswapRouter, signer, weth, busd, owner, 12)
+        await fetcherV2.fetch(index)
+        const pBlockAfter = (await fetcherV2.s_store(index)).proofBlock
+        expect(pBlockAfter.toNumber()).to.be.gt(pBlockBefore.toNumber())
+        // blocks < 10 no need to update proof
+        await swapMonkey(uniswapRouter, signer, weth, busd, owner, 8)
+        await fetcherV2.fetch(index)
+        const pBlockAfter2 = (await fetcherV2.s_store(index)).proofBlock
+        expect(pBlockAfter2.toNumber()).to.be.equal(pBlockAfter.toNumber())
+
+        // ---observationCardinality test---
+        expect((await fetcherV2.s_store(index)).observationIndex).to.be.equal(2)
+        // clear store
+        await fetcherV2.clear(index)
+        // submit 30 proofs
+        for (let i = 0; i < 31; i++) {
+            let bNum = await provider.getBlockNumber()
+            let proof1 = await OracleSdk.getProof(
+                getStorageAt,
+                getProof,
+                getBlockByNumber,
+                BigInt(uniswapPool.address),
+                BigInt(busd.address),
+                bn(bNum).sub(15).toBigInt()
+            )
+            let txSubmit = await contractWithSigner.submit(index, proof1, {gasLimit: 5000000})
+            await txSubmit.wait()
+        }
+        expect((await fetcherV2.s_store(index)).observationIndex).to.be.equal(0)
     })
 
     it('fetch price after swap monkey', async () => {
@@ -303,7 +324,6 @@ describe('price', function () {
         // transfer native eth to fetcher contract
         const url = 'http://127.0.0.1:8545'
         const provider = new ethers.providers.JsonRpcProvider(url)
-        // const wallet = new ethers.Wallet('60f5906de1edfc4d14eb4aea49ed4c06641bbdbd5a56092392308e9730598373', provider)
         let transaction = {
             to: fetcherV2.address,
             value: ethers.utils.parseEther('1.0'),
@@ -311,7 +331,6 @@ describe('price', function () {
         };
         await owner.sendTransaction(transaction)
         const before = await provider.getBalance(fetcherV2.address)
-        console.log('FetcherV2 balance before: ', before)
         const blockNumber = await provider.getBlockNumber()
         const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
         const getProof = OracleSdkAdapter.getProofFactory(provider)
@@ -336,17 +355,19 @@ describe('price', function () {
                 .toHexString(),
             32
         )
+        const walletBefore = await provider.getBalance(owner.address)
         const tx = await fetcherV2.submit(index, proof, {gasLimit: 5000000})
         const receipt = await tx.wait()
+        const walletAfter = await provider.getBalance(owner.address)
         // check the gas fee refund
         const gasUsed = receipt.gasUsed
         const gasPrice = receipt.effectiveGasPrice
         const gasFee = gasUsed.mul(gasPrice)
-        console.log('Gas Used: ', gasUsed)
-        console.log('Gas Price: ', gasPrice)
         console.log('Gas Fee: ', gasFee)
 
         const after = await provider.getBalance(fetcherV2.address)
         console.log('FetcherV2 balance used: ', before.sub(after))
+        console.log('Wallet balance used: ', walletBefore.sub(walletAfter))
+        expect(walletBefore.sub(walletAfter).toNumber()).to.be.equal(gasFee.sub(before.sub(after)).toNumber())
     })
 })

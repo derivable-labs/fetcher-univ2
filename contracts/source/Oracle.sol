@@ -10,7 +10,7 @@ library Oracle {
     }
 
     function init(
-        Observation[30] storage self,
+        Observation[65535] storage self,
         uint256 price,
         uint64 proofBlock,
         uint128 dataTime
@@ -25,16 +25,17 @@ library Oracle {
     }
 
     function write(
-        Observation[30] storage self,
+        Observation[65535] storage self,
         uint16 index,
         uint256 price,
         uint64 proofBlock,
-        uint128 dataTime
+        uint128 dataTime,
+        uint16 cardinality
     ) internal returns (uint16 indexUpdated) {
         if (index == 0 && !self[0].initialized) return init(self, price, proofBlock, dataTime);
         Observation memory last = self[index];
         if (last.proofBlock == proofBlock) return index;
-        indexUpdated = (index + 1) % 30;
+        indexUpdated = (index + 1) % cardinality;
         self[indexUpdated] = Observation({
             price: price,
             proofBlock: proofBlock,
@@ -47,11 +48,12 @@ library Oracle {
     // proofBlock is the newest one that is smaller than (block.number - window)
     // and revert if no observation index found
     function find(
-        Observation[30] storage self,
-        uint64 window
+        Observation[65535] storage self,
+        uint64 window,
+        uint16 cardinality
     ) internal view returns (uint16 index) {
         uint start = 0;
-        uint end = 29;
+        uint end = cardinality;
         uint lastValid = 0;
 
         while (start <= end) {
