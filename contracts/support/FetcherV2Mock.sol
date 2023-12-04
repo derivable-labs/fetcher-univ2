@@ -16,14 +16,14 @@ contract FetcherV2Mock is FetcherV2 {
         uint32 window = uint32(ORACLE >> 192);
         require(proofBlock >= block.number - window, "OLD_PROOF");
         require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
-        s_store[ORACLE].proofBlock = uint64(proofBlock);
+        s_store[ORACLE][s_observation_index[ORACLE]].proofBlock = uint64(proofBlock);
         
-        require(s_store[ORACLE].dataTime <= dataTime, "OLD_DATA");
-        if (s_store[ORACLE].dataTime < dataTime) {
-            s_store[ORACLE].dataTime = uint128(dataTime);
+        require(s_store[ORACLE][s_observation_index[ORACLE]].dataTime <= dataTime, "OLD_DATA");
+        if (s_store[ORACLE][s_observation_index[ORACLE]].dataTime < dataTime) {
+            s_store[ORACLE][s_observation_index[ORACLE]].dataTime = uint128(dataTime);
 
-            require(s_store[ORACLE].basePriceCumulative < basePriceCumulative, "INVALID_PRICE");
-            s_store[ORACLE].basePriceCumulative = basePriceCumulative;
+            require(s_store[ORACLE][s_observation_index[ORACLE]].basePriceCumulative < basePriceCumulative, "INVALID_PRICE");
+            s_store[ORACLE][s_observation_index[ORACLE]].basePriceCumulative = basePriceCumulative;
         }
     }
 }

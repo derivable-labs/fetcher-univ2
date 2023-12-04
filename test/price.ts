@@ -258,21 +258,21 @@ describe('price', function () {
         }], {gasLimit: 5000000})
 
         // ---interval test---
-        await fetcherV2.fetch(index)
-        const pBlockBefore = (await fetcherV2.s_store(index)).proofBlock
+        await fetcherV2.fetch(index) 
+        const pBlockBefore = (await fetcherV2.s_store(index, await fetcherV2.s_observation_index(index))).proofBlock
         // blocks > 10 need to update proof
         await swapMonkey(uniswapRouter, signer, weth, busd, owner, 12)
         await fetcherV2.fetch(index)
-        const pBlockAfter = (await fetcherV2.s_store(index)).proofBlock
+        const pBlockAfter = (await fetcherV2.s_store(index, await fetcherV2.s_observation_index(index))).proofBlock
         expect(pBlockAfter.toNumber()).to.be.gt(pBlockBefore.toNumber())
         // blocks < 10 no need to update proof
         await swapMonkey(uniswapRouter, signer, weth, busd, owner, 8)
         await fetcherV2.fetch(index)
-        const pBlockAfter2 = (await fetcherV2.s_store(index)).proofBlock
+        const pBlockAfter2 = (await fetcherV2.s_store(index, await fetcherV2.s_observation_index(index))).proofBlock
         expect(pBlockAfter2.toNumber()).to.be.equal(pBlockAfter.toNumber())
 
         // ---observationCardinality test---
-        expect((await fetcherV2.s_store(index)).observationIndex).to.be.equal(2)
+        expect(await fetcherV2.s_observation_index(index)).to.be.equal(2)
         // clear store
         await fetcherV2.clear(index)
         // submit 30 proofs
@@ -289,7 +289,7 @@ describe('price', function () {
             let txSubmit = await contractWithSigner.submit(index, proof1, {gasLimit: 5000000})
             await txSubmit.wait()
         }
-        expect((await fetcherV2.s_store(index)).observationIndex).to.be.equal(0)
+        expect(await fetcherV2.s_observation_index(index)).to.be.equal(0)
     })
 
     it('fetch price after swap monkey', async () => {

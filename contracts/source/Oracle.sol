@@ -2,30 +2,32 @@
 pragma solidity ^0.6.12;
 
 library Oracle {
-    struct Observation {
-        uint256 price;
+    struct Slot {
+        bool lock;
         uint64 proofBlock;
         uint128 dataTime;
+        uint256 basePriceCumulative;
         bool initialized;
     }
 
     function init(
-        Observation[65535] storage self,
+        Slot[65535] storage self,
         uint256 price,
         uint64 proofBlock,
         uint128 dataTime
     ) internal returns (uint16) {
-        self[0] = Observation({
-            price: price,
+        self[0] = Slot({
+            lock: false,
             proofBlock: proofBlock,
             dataTime: dataTime,
+            basePriceCumulative: price,
             initialized: true
         });
         return 0;
     }
 
     function write(
-        Observation[65535] storage self,
+        Slot[65535] storage self,
         uint16 index,
         uint256 price,
         uint64 proofBlock,
@@ -33,13 +35,14 @@ library Oracle {
         uint16 cardinality
     ) internal returns (uint16 indexUpdated) {
         if (index == 0 && !self[0].initialized) return init(self, price, proofBlock, dataTime);
-        Observation memory last = self[index];
+        Slot memory last = self[index];
         if (last.proofBlock == proofBlock) return index;
         indexUpdated = (index + 1) % cardinality;
-        self[indexUpdated] = Observation({
-            price: price,
+        self[indexUpdated] = Slot({
+            lock: false,
             proofBlock: proofBlock,
             dataTime: dataTime,
+            basePriceCumulative: price,
             initialized: true
         });
     }
@@ -48,7 +51,7 @@ library Oracle {
     // proofBlock is the newest one that is smaller than (block.number - window)
     // and revert if no observation index found
     function find(
-        Observation[65535] storage self,
+        Slot[65535] storage self,
         uint64 window,
         uint16 cardinality
     ) internal view returns (uint16 index) {
