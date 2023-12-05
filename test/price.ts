@@ -157,7 +157,8 @@ describe('price', function () {
         const oracle = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
-                .add(bn(30).shl(256 - 64))
+                .add(bn(15).shl(256 - 64))
+                .add(bn(30).shl(160))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
@@ -225,7 +226,8 @@ describe('price', function () {
         const index = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
-                .add(bn(30).shl(256 - 64))
+                .add(bn(15).shl(192))
+                .add(bn(30).shl(160))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
@@ -350,7 +352,7 @@ describe('price', function () {
         const index = ethers.utils.hexZeroPad(
             bn(quoteTokenIndex)
                 .shl(255)
-                .add(bn(30).shl(256 - 64))
+                .add(bn(15).shl(256 - 64))
                 .add(uniswapPool.address)
                 .toHexString(),
             32

@@ -62,8 +62,11 @@ contract FetcherV2 is IFetcher, ERC165 {
     function fetch(
         uint256 ORACLE
     ) override external returns (uint256 twap, uint256 spot) {
-        uint32 window_max = uint32(ORACLE >> 192);
-        uint32 window = window_max >> 1;
+        uint32 window = uint32(ORACLE >> 192);
+        uint32 window_max = uint32(ORACLE >> 160);
+        if (window_max > 0) {
+            require(window < window_max, "WRONG_WINDOW_CONFIG");
+        }
 
         // find the observation index has the biggest proofBlock that is smaller than (block.number - window)
         uint16 foundIndex = s_store[ORACLE].find(window, observationCardinality);
@@ -124,10 +127,15 @@ contract FetcherV2 is IFetcher, ERC165 {
             uint256 proofBlock
         ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
         {
-            uint32 window_max = uint32(ORACLE >> 192);
-            uint32 window = window_max >> 1;
+            uint32 window = uint32(ORACLE >> 192);
+            uint32 window_max = uint32(ORACLE >> 160);
             require(block.number - window >= proofBlock, "NEW_PROOF");
-            require(proofBlock > s_store[ORACLE][s_observation_index[ORACLE]].proofBlock && proofBlock >= block.number - window_max, "OLD_PROOF");
+            if (window_max == 0) {
+                require(proofBlock > s_store[ORACLE][s_observation_index[ORACLE]].proofBlock, "OLD_PROOF");
+            } else {
+                require(window < window_max, "WRONG_WINDOW_CONFIG");
+                require(proofBlock > s_store[ORACLE][s_observation_index[ORACLE]].proofBlock && proofBlock >= block.number - window_max, "OLD_PROOF");
+            }
         }
     
         uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
