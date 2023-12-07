@@ -100,14 +100,14 @@ contract FetcherV2 is IFetcher, ERC165 {
     ) external virtual nonReentrant(ORACLE) returns (uint256 gasUsed) {
         gasUsed = gasleft();
 
-        (
-            bytes32 storageRootHash,
-            uint256 proofBlock
-        ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
-
         Store memory store;
+        bytes32 storageRootHash;
 
         {
+            uint256 proofBlock;
+            (storageRootHash, proofBlock) =
+                _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
+
             uint256 WINDOW_OLD = uint16(ORACLE >> 208);
             require(WINDOW_OLD == 0 || proofBlock >= block.number - WINDOW_OLD, "OLD_PROOF");
             uint256 WINDOW_NEW = uint16(ORACLE >> 192);
@@ -117,26 +117,26 @@ contract FetcherV2 is IFetcher, ERC165 {
                 // racing submissions: skip
                 return gasUsed - gasleft();
             }
+            store.proofBlock = uint64(proofBlock);
         }
     
-        uint256 dataTime = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
-            storageRootHash,
-            _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
-            RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-        ))) >> (112 + 112);
-
         {
+            uint256 dataTime = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
+                storageRootHash,
+                _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
+                RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
+            ))) >> (112 + 112);
             if (dataTime < store.dataTime) {
                 // racing submissions: skip
                 return gasUsed - gasleft();
             }
             if (dataTime == store.dataTime) {
                 // no-change from the last proof, only the proofBlock need to be updated
-                s_store[ORACLE].proofBlock = uint64(proofBlock);
-                emit Submit(bytes32(ORACLE), proofBlock, 0, 0);
+                s_store[ORACLE].proofBlock = store.proofBlock;
+                emit Submit(bytes32(ORACLE), store.proofBlock, 0, 0);
                 return gasUsed - gasleft();
             }
-            store.proofBlock = uint64(proofBlock);
+            // update storage for both proofBlock and dataTime
             store.dataTime = uint128(dataTime);
             s_store[ORACLE] = store;
         }
@@ -153,8 +153,8 @@ contract FetcherV2 is IFetcher, ERC165 {
 
         emit Submit(
             bytes32(ORACLE),
-            proofBlock,
-            dataTime,
+            store.proofBlock,
+            store.dataTime,
             basePriceCumulative
         );
 
