@@ -56,10 +56,11 @@ contract FetcherV2 is IFetcher, ERC165 {
     function fetch(
         uint256 ORACLE
     ) override external view returns (uint256 twap, uint256 spot) {
-        uint32 window = uint32(ORACLE >> 192);
         Store memory store = s_store[ORACLE];
-        require(store.proofBlock + window >= block.number, "OLD");
-        require(store.proofBlock + (window >> 1) <= block.number, "NEW");
+        uint256 WINDOW_OLD = uint16(ORACLE >> 208);
+        require(WINDOW_OLD == 0 || store.proofBlock >= block.number - WINDOW_OLD, "OLD");
+        uint256 WINDOW_NEW = uint16(ORACLE >> 192);
+        require(WINDOW_NEW == 0 || store.proofBlock <= block.number - WINDOW_NEW, "NEW");
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
 
@@ -96,12 +97,14 @@ contract FetcherV2 is IFetcher, ERC165 {
             uint256 proofBlock
         ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
 
-        Store memory store = s_store[ORACLE];
+        Store memory store;
 
         {
-            uint32 window = uint32(ORACLE >> 192);
-            require(proofBlock >= block.number - window, "OLD_PROOF");
-            require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
+            uint256 WINDOW_OLD = uint16(ORACLE >> 208);
+            require(WINDOW_OLD == 0 || proofBlock >= block.number - WINDOW_OLD, "OLD_PROOF");
+            uint256 WINDOW_NEW = uint16(ORACLE >> 192);
+            require(WINDOW_NEW == 0 || proofBlock <= block.number - WINDOW_NEW, "NEW_PROOF");
+            store = s_store[ORACLE];
             if (proofBlock <= store.proofBlock) {
                 // racing submits: skip
                 return;
@@ -113,6 +116,7 @@ contract FetcherV2 is IFetcher, ERC165 {
             _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
             RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
         ))) >> (112 + 112);
+
         {
             if (dataTime < store.dataTime) {
                 // racing submits: skip

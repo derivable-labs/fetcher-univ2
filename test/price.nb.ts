@@ -203,7 +203,7 @@ describe('price', function () {
             getBlockByNumber,
             uniswapPool.address,
             busd.address,
-            blockNumber - 50
+            blockNumber - 100,
         )
         // Connect to the network
         const contractWithSigner = fetcherV2

@@ -203,7 +203,7 @@ describe('price', function () {
             getBlockByNumber,
             BigInt(uniswapPool.address),
             BigInt(busd.address),
-            bn(blockNumber).sub(50).toBigInt()
+            BigInt(blockNumber - 100),
         )
         // Connect to the network
         const contractWithSigner = fetcherV2
