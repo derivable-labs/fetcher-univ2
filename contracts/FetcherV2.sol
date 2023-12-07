@@ -64,19 +64,23 @@ contract FetcherV2 is IFetcher, ERC165 {
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
 
-        (uint basePriceCumulative, uint dataTime) = UniswapV2OracleLibrary
-            .currentCumulativePrice(pair, qti);
-        require(store.dataTime < dataTime, "NOW");
-
-        twap = (
-            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
-            (dataTime - store.dataTime)
-        ) << 16;
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
         if (qti == 0) {
             (rb, rq) = (rq, rb);
         }
         spot = FullMath.mulDiv(Q128, rq, rb);
+
+        (uint basePriceCumulative, uint dataTime) = UniswapV2OracleLibrary
+            .currentCumulativePrice(pair, qti);
+
+        if (dataTime <= store.dataTime) {
+            return (spot, spot);
+        }
+
+        twap = (
+            (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
+            (dataTime - store.dataTime)
+        ) << 16;
     }
 
     function clear(uint256 ORACLE) external virtual {
