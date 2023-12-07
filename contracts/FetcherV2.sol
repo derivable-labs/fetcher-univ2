@@ -3,8 +3,9 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/introspection/ERC165.sol";
-import "./source/BlockVerifier.sol";
+import "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 import "solidity-rlp/contracts/RLPReader.sol";
+import "./source/BlockVerifier.sol";
 import "./source/MerklePatriciaProofVerifier.sol";
 import "./source/FullMath.sol";
 import "./source/UniswapV2OracleLibrary.sol";
@@ -94,8 +95,11 @@ contract FetcherV2 is IFetcher, ERC165 {
     // for the two storage slots we care about
     function submit(
         uint256 ORACLE,
-        ProofData calldata proofData
-    ) external virtual nonReentrant(ORACLE) {
+        ProofData calldata proofData,
+        address refundee
+    ) external virtual nonReentrant(ORACLE) returns (uint256 gasUsed) {
+        gasUsed = gasleft();
+
         (
             bytes32 storageRootHash,
             uint256 proofBlock
@@ -110,8 +114,8 @@ contract FetcherV2 is IFetcher, ERC165 {
             require(WINDOW_NEW == 0 || proofBlock <= block.number - WINDOW_NEW, "NEW_PROOF");
             store = s_store[ORACLE];
             if (proofBlock <= store.proofBlock) {
-                // racing submits: skip
-                return;
+                // racing submissions: skip
+                return gasUsed - gasleft();
             }
         }
     
@@ -123,27 +127,25 @@ contract FetcherV2 is IFetcher, ERC165 {
 
         {
             if (dataTime < store.dataTime) {
-                // racing submits: skip
-                return;
+                // racing submissions: skip
+                return gasUsed - gasleft();
             }
             if (dataTime == store.dataTime) {
                 // no-change from the last proof, only the proofBlock need to be updated
                 s_store[ORACLE].proofBlock = uint64(proofBlock);
                 emit Submit(bytes32(ORACLE), proofBlock, 0, 0);
-                return;
+                return gasUsed - gasleft();
             }
             store.proofBlock = uint64(proofBlock);
             store.dataTime = uint128(dataTime);
             s_store[ORACLE] = store;
         }
 
-        uint256 qti = ORACLE >> 255;
-        bytes32 slotHash = qti == 1 ? PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH;
-
         uint basePriceCumulative = RLPReader.toUint(RLPReader.toRlpItem(
             MerklePatriciaProofVerifier.extractProofValue(
                 storageRootHash,
-                _decodeBytes32Nibbles(slotHash),
+                _decodeBytes32Nibbles(ORACLE >> 255 == 1 ?
+                    PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH),
                 RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
             )
         ));
@@ -155,6 +157,16 @@ contract FetcherV2 is IFetcher, ERC165 {
             dataTime,
             basePriceCumulative
         );
+
+        // calculate the gas used for the entire transaction
+        gasUsed -= gasleft();
+        if (refundee != address(0)) {
+            // refund the execution cost to refundee
+            uint256 cost = gasUsed * tx.gasprice;
+            if (address(this).balance >= cost) {
+                TransferHelper.safeTransferETH(refundee, cost);
+            }
+        }
     }
 
     /**

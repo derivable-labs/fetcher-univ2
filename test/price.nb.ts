@@ -3,6 +3,7 @@ import { Crypto } from '@peculiar/webcrypto'
 import hre, { ethers } from "hardhat"
 import * as OracleSdk from '../scripts/OracleSdkNB'
 import * as OracleSdkAdapter from '../scripts/OracleSdkAdapterNB'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 const SIDE_R = 0x00
 const SIDE_A = 0x10
@@ -31,10 +32,11 @@ describe('price', function () {
     let poolAddress: any
     let recipient: any
     let utr: any
+    let owner: SignerWithAddress
 
     beforeEach(async function() {
         // deploy uniswap v2
-        const [owner] = await ethers.getSigners()
+        [owner] = await ethers.getSigners()
         const signer = owner
         recipient = owner
         // weth test
@@ -219,7 +221,7 @@ describe('price', function () {
         )
         console.log(index)
         const receipt = await (
-            await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
+            await contractWithSigner.submit(index, proof, owner.address, {gasLimit: 5000000})
         ).wait()
         console.log(receipt)
 
