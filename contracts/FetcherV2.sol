@@ -57,20 +57,19 @@ contract FetcherV2 is IFetcher, ERC165 {
         uint256 ORACLE
     ) override external view returns (uint256 twap, uint256 spot) {
         uint32 window = uint32(ORACLE >> 192);
-        uint proofBlock = s_store[ORACLE].proofBlock;
-        require(proofBlock + window >= block.number, "OLD");
-        require(proofBlock + (window >> 1) <= block.number, "NEW");
+        Store memory store = s_store[ORACLE];
+        require(store.proofBlock + window >= block.number, "OLD");
+        require(store.proofBlock + (window >> 1) <= block.number, "NEW");
         address pair = address(uint160(ORACLE));
         uint256 qti = ORACLE >> 255;
 
-        (uint basePriceCumulative, uint newDataTime) = UniswapV2OracleLibrary
+        (uint basePriceCumulative, uint dataTime) = UniswapV2OracleLibrary
             .currentCumulativePrice(pair, qti);
-        uint dataTime = s_store[ORACLE].dataTime;
-        require(dataTime < newDataTime, "NOW");
+        require(store.dataTime < dataTime, "NOW");
 
         twap = (
             (basePriceCumulative - s_basePriceCumulative[ORACLE]) /
-            (newDataTime - dataTime)
+            (dataTime - store.dataTime)
         ) << 16;
         (uint rb, uint rq, ) = IUniswapV2Pair(pair).getReserves();
         if (qti == 0) {
@@ -97,28 +96,37 @@ contract FetcherV2 is IFetcher, ERC165 {
             uint256 proofBlock
         ) = _getAccountStorageRoot(address(uint160(ORACLE)), proofData);
 
+        Store memory store = s_store[ORACLE];
+
         {
             uint32 window = uint32(ORACLE >> 192);
             require(proofBlock >= block.number - window, "OLD_PROOF");
             require(proofBlock <= block.number - (window >> 1), "NEW_PROOF");
-            s_store[ORACLE].proofBlock = uint64(proofBlock);
+            if (proofBlock <= store.proofBlock) {
+                // racing submits: skip
+                return;
+            }
         }
     
-        uint256 reserve0Reserve1TimestampPacked = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
+        uint256 dataTime = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
             storageRootHash,
             _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
             RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-        )));
-        uint256 newDataTime = reserve0Reserve1TimestampPacked >> (112 + 112);
+        ))) >> (112 + 112);
         {
-            uint256 dataTime = s_store[ORACLE].dataTime;
-            require(dataTime <= newDataTime, "OLD_DATA");
-            if (newDataTime == dataTime) {
+            if (dataTime < store.dataTime) {
+                // racing submits: skip
+                return;
+            }
+            if (dataTime == store.dataTime) {
                 // no-change from the last proof, only the proofBlock need to be updated
+                s_store[ORACLE].proofBlock = uint64(proofBlock);
                 emit Submit(bytes32(ORACLE), proofBlock, 0, 0);
                 return;
             }
-            s_store[ORACLE].dataTime = uint128(newDataTime);
+            store.proofBlock = uint64(proofBlock);
+            store.dataTime = uint128(dataTime);
+            s_store[ORACLE] = store;
         }
 
         uint256 qti = ORACLE >> 255;
@@ -136,7 +144,7 @@ contract FetcherV2 is IFetcher, ERC165 {
         emit Submit(
             bytes32(ORACLE),
             proofBlock,
-            newDataTime,
+            dataTime,
             basePriceCumulative
         );
     }
