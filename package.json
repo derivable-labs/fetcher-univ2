@@ -46,6 +46,7 @@
     "canonical-weth": "^1.4.0",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
+    "ethereum-waffle": "^3.4.4",
     "mocha": "^10.0.0",
     "node-fetch": "^2.6.6",
     "solidity-coverage": "^0.8.5",

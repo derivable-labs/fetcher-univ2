@@ -30,8 +30,8 @@ contract FetcherV2 is IFetcher, ERC165 {
         uint128 dataTime;
     }
 
-    mapping(uint256 => Store) s_store;
-    mapping(uint256 => uint256) s_basePriceCumulative;
+    mapping(uint256 => Store) public s_store;
+    mapping(uint256 => uint256) public s_basePriceCumulative;
 
     struct ProofData {
         bytes block;
@@ -244,4 +244,7 @@ contract FetcherV2 is IFetcher, ERC165 {
             interfaceId == 0x61206120 ||
             super.supportsInterface(interfaceId);
     }
+
+     // accepting ETH
+     receive() external payable {}
 }
