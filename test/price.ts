@@ -321,7 +321,7 @@ describe('price', function () {
         await expect(fetcherV2.submit(oracleNew, proofNew, owner.address, {gasLimit: 5000000})).to.be.revertedWith('NEW_PROOF')
     })
 
-    it('racing submissions: skip', async () => {
+    it('racing submissions', async () => {
         const oracle = ethers.utils.hexZeroPad(
             bn(0)
                 .shl(255)
@@ -330,10 +330,14 @@ describe('price', function () {
                 .toHexString(),
             32
         )
-        const proof = await getProof(provider, uniswapPool.address, weth.address, (await provider.getBlockNumber()) - 10)
+        const head = await provider.getBlockNumber()
+        const proof = await getProof(provider, uniswapPool.address, weth.address, head - 3)
         await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
-        const proof1 = await getProof(provider, uniswapPool.address, weth.address, (await provider.getBlockNumber()) - 12)
+        await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
+        const proof1 = await getProof(provider, uniswapPool.address, weth.address, head - 5)
         await fetcherV2.submit(oracle, proof1, owner.address, {gasLimit: 5000000})
+        const proof2 = await getProof(provider, uniswapPool.address, weth.address, head)
+        await fetcherV2.submit(oracle, proof2, owner.address, {gasLimit: 5000000})
     })
 
     it('check amount of the gas fee refund', async () => {
