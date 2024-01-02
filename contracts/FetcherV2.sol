@@ -75,6 +75,7 @@ contract FetcherV2 is IFetcher, ERC165 {
             .currentCumulativePrice(pair, qti);
 
         if (dataTime <= store.dataTime) {
+            // proof data is not in the past
             return (spot, spot);
         }
 
