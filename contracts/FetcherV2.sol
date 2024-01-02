@@ -127,7 +127,7 @@ contract FetcherV2 is IFetcher, ERC165 {
                 RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
             ))) >> (112 + 112);
             if (dataTime < store.dataTime) {
-                // racing submissions: skip
+                // practically never happen
                 return gasUsed - gasleft();
             }
             if (dataTime == store.dataTime) {
