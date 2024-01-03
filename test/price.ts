@@ -94,7 +94,7 @@ describe('price', function () {
         const signer = owner
         recipient = owner
         // provider
-        provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:8545')
+        provider = new ethers.providers.JsonRpcProvider()
         // weth test
         const compiledWETH = require("canonical-weth/build/contracts/WETH9.json")
         const WETH = await new ethers.ContractFactory(compiledWETH.abi, compiledWETH.bytecode, signer)
@@ -332,7 +332,7 @@ describe('price', function () {
         await fetcherV2.submit(oracle, proof2, owner.address, {gasLimit: 5000000})
     })
 
-    it('check amount of the gas fee refund', async () => {
+    it('gas fee refund', async () => {
         // transfer native eth to fetcher contract
         let transaction = {
             to: fetcherV2.address,

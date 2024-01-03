@@ -23,7 +23,7 @@ function feeToOpenRate(fee: any) {
     return bn(((1-fee)*10000).toFixed(0)).shl(128).div(10000)
 }
 
-describe('price', function () {
+describe('price no-big-int', function () {
     let uniswapPool: any
     let fetcherV2: any
     let busd: any
@@ -192,8 +192,7 @@ describe('price', function () {
         }
     })
     it('fetch price', async () => {
-        const url = 'http://127.0.0.1:8545'
-        const provider = new ethers.providers.JsonRpcProvider(url)
+        const provider = new ethers.providers.JsonRpcProvider()
         const blockNumber = await provider.getBlockNumber()
         const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
         const getProof = OracleSdkAdapter.getProofFactory(provider)
