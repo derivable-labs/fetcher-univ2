@@ -96,7 +96,7 @@ contract FetcherV2 is IFetcher, ERC165 {
     // for the two storage slots we care about
     function submit(
         uint256 ORACLE,
-        ProofData calldata proofData,
+        ProofData memory proofData,
         address refundee
     ) external virtual nonReentrant(ORACLE) returns (uint256 gasUsed) {
         gasUsed = gasleft();
@@ -213,7 +213,7 @@ contract FetcherV2 is IFetcher, ERC165 {
 
     function _getAccountStorageRoot(
         address uniswapV2Pair,
-        ProofData calldata proofData
+        ProofData memory proofData
     )
         internal
         view
