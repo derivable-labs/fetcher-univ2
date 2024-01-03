@@ -276,6 +276,60 @@ describe('price', function () {
         console.log(await fetcherV2.fetch(index1))
     })
 
+    it('submit-fetch-clear', async () => {
+        // get the proof from the SDK
+        const curBlkNum = await provider.getBlockNumber()
+        const proof = await getProof(provider, uniswapPool.address, busd.address, curBlkNum)
+        // Connect to the network
+        const oracle = ethers.utils.hexZeroPad(
+            bn(qti)
+                .shl(255)
+                .add(bn(25).shl(208))
+                .add(uniswapPool.address)
+                .toHexString(),
+            32
+        )
+        console.log(oracle)
+
+        await weth.deposit({value: numberToWei(0.0001)})
+        await weth.approve(utr.address, ethers.constants.MaxUint256)
+        const tx = await utr.exec([], [{
+            inputs: [],
+            code: fetcherV2.address,
+            data: (
+                await fetcherV2.populateTransaction.submit(oracle, proof, owner.address)
+            ).data,
+        }, {
+            inputs: [{
+                mode: PAYMENT,
+                eip: 20,
+                token: weth.address,
+                id: 0,
+                amountIn: numberToWei(0.0001),
+                recipient: poolAddress,
+            }],
+            code: stateCalHelper.address,
+            data: (await stateCalHelper.populateTransaction.swap({
+                sideIn: SIDE_R,
+                poolIn: poolAddress,
+                sideOut: SIDE_B,
+                poolOut: poolAddress,
+                amountIn: numberToWei(0.0001),
+                payer: recipient.address,
+                recipient: recipient.address,
+                INDEX_R: 0
+            })).data,
+        }, {
+            inputs: [],
+            code: fetcherV2.address,
+            data: (
+                await fetcherV2.populateTransaction.clear(oracle)
+            ).data,
+        }], { gasLimit: 5000000 })
+        const rec = await tx.wait()
+        console.log(rec.gasUsed.toString())
+    })
+
     it('revert OLD/NEW', async () => {
         // WINDOW_OLD != 0 && proofBlock < block.number - WINDOW
         const oracle = ethers.utils.hexZeroPad(
