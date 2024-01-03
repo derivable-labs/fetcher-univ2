@@ -218,6 +218,7 @@ describe('price', function () {
         // swap monkey
         await swapMonkey(uniswapRouter, signer, weth, busd, owner, 100)
     })
+
     it('fetch price', async () => {
         // get the proof from the SDK
         const curBlkNum = await provider.getBlockNumber()
@@ -360,11 +361,11 @@ describe('price', function () {
         const gasUsed = receipt.gasUsed
         const gasPrice = receipt.effectiveGasPrice
         const gasFee = gasUsed.mul(gasPrice)
-        console.log('Gas Fee: ', gasFee)
+        console.log('Gas Fee: ', gasFee.toLocaleString())
 
         const after = await provider.getBalance(fetcherV2.address)
-        console.log('FetcherV2 balance used: ', before.sub(after))
-        console.log('Wallet balance used: ', walletBefore.sub(walletAfter))
+        console.log('FetcherV2 balance used: ', before.sub(after).toLocaleString())
+        console.log('Wallet balance used: ', walletBefore.sub(walletAfter).toLocaleString())
         expect(walletBefore.sub(walletAfter).toNumber()).to.be.equal(gasFee.sub(before.sub(after)).toNumber())
     })
 })
