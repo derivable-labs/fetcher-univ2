@@ -3,6 +3,7 @@ import { Crypto } from '@peculiar/webcrypto'
 import hre, { ethers } from "hardhat"
 import * as OracleSdk from '../scripts/OracleSdkNB'
 import * as OracleSdkAdapter from '../scripts/OracleSdkAdapterNB'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 const SIDE_R = 0x00
 const SIDE_A = 0x10
@@ -22,7 +23,7 @@ function feeToOpenRate(fee: any) {
     return bn(((1-fee)*10000).toFixed(0)).shl(128).div(10000)
 }
 
-describe('price', function () {
+describe('price no-big-int', function () {
     let uniswapPool: any
     let fetcherV2: any
     let busd: any
@@ -31,10 +32,11 @@ describe('price', function () {
     let poolAddress: any
     let recipient: any
     let utr: any
+    let owner: SignerWithAddress
 
     beforeEach(async function() {
         // deploy uniswap v2
-        const [owner] = await ethers.getSigners()
+        [owner] = await ethers.getSigners()
         const signer = owner
         recipient = owner
         // weth test
@@ -190,8 +192,7 @@ describe('price', function () {
         }
     })
     it('fetch price', async () => {
-        const url = 'http://127.0.0.1:8545'
-        const provider = new ethers.providers.JsonRpcProvider(url)
+        const provider = new ethers.providers.JsonRpcProvider()
         const blockNumber = await provider.getBlockNumber()
         const getStorageAt = OracleSdkAdapter.getStorageAtFactory(provider)
         const getProof = OracleSdkAdapter.getProofFactory(provider)
@@ -203,7 +204,7 @@ describe('price', function () {
             getBlockByNumber,
             uniswapPool.address,
             busd.address,
-            blockNumber - 50
+            blockNumber - 100,
         )
         // Connect to the network
         const contractWithSigner = fetcherV2
@@ -219,7 +220,7 @@ describe('price', function () {
         )
         console.log(index)
         const receipt = await (
-            await contractWithSigner.submit(index, proof, {gasLimit: 5000000})
+            await contractWithSigner.submit(index, proof, owner.address, {gasLimit: 5000000})
         ).wait()
         console.log(receipt)
 

@@ -2,9 +2,10 @@ import { HardhatUserConfig } from "hardhat/config";
 
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
+import "@nomiclabs/hardhat-ganache";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
-import "@nomiclabs/hardhat-ganache";
+import "solidity-coverage";
 import dotenv from 'dotenv';
 
 dotenv.config({ path: __dirname + "/.env" });

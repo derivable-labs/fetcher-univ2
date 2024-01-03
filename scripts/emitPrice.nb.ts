@@ -45,7 +45,7 @@ const main = async (hre: any) => {
     //     32,
     // )
 
-    // const receipt = await (await contractWithSigner.submit(index, proof, opts)).wait()
+    // const receipt = await (await contractWithSigner.submit(index, proof, account, opts)).wait()
     // console.log(receipt)
 }
 
