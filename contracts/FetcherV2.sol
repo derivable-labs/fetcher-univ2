@@ -56,7 +56,7 @@ contract FetcherV2 is IFetcher, ERC165 {
 
     function fetch(
         uint256 ORACLE
-    ) override external view returns (uint256 twap, uint256 spot) {
+    ) external view override returns (uint256 twap, uint256 spot) {
         Store memory store = s_store[ORACLE];
         uint256 WINDOW_OLD = uint16(ORACLE >> 208);
         require(WINDOW_OLD == 0 || store.proofBlock >= block.number - WINDOW_OLD, "OLD");
@@ -122,11 +122,15 @@ contract FetcherV2 is IFetcher, ERC165 {
         }
     
         {
-            uint256 dataTime = RLPReader.toUint(RLPReader.toRlpItem(MerklePatriciaProofVerifier.extractProofValue(
-                storageRootHash,
-                _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
-                RLPReader.toList(RLPReader.toRlpItem(proofData.reserveAndTimestampProofNodesRlp))
-            ))) >> (112 + 112);
+            uint256 dataTime = RLPReader.toUint(RLPReader.toRlpItem(
+                MerklePatriciaProofVerifier.extractProofValue(
+                    storageRootHash,
+                    _decodeBytes32Nibbles(RESERVE_TIMESTAMP_SLOT_HASH),
+                    RLPReader.toList(RLPReader.toRlpItem(
+                        proofData.reserveAndTimestampProofNodesRlp
+                    ))
+                )
+            )) >> (112 + 112);
             if (dataTime < store.dataTime) {
                 // practically never happen
                 return gasUsed - gasleft();
@@ -147,7 +151,9 @@ contract FetcherV2 is IFetcher, ERC165 {
                 storageRootHash,
                 _decodeBytes32Nibbles(ORACLE >> 255 == 1 ?
                     PRICE_CUMULATIVE_0_SLOT_HASH : PRICE_CUMULATIVE_1_SLOT_HASH),
-                RLPReader.toList(RLPReader.toRlpItem(proofData.priceAccumulatorProofNodesRlp))
+                RLPReader.toList(RLPReader.toRlpItem(
+                    proofData.priceAccumulatorProofNodesRlp
+                ))
             )
         ));
         s_basePriceCumulative[ORACLE] = basePriceCumulative;
@@ -174,7 +180,7 @@ contract FetcherV2 is IFetcher, ERC165 {
      * @dev against read-only reentrancy
      */
     function ensureStateIntegrity(uint ORACLE) public view {
-        require(!s_store[ORACLE].lock, 'FetcherV2: STATE_INTEGRITY');
+        require(!s_store[ORACLE].lock, "FetcherV2: STATE_INTEGRITY");
     }
 
     function _decodeBytes32Nibbles(bytes32 path) internal pure returns (bytes memory nibblePath) {
@@ -246,6 +252,6 @@ contract FetcherV2 is IFetcher, ERC165 {
             super.supportsInterface(interfaceId);
     }
 
-     // accepting ETH
-     receive() external payable {}
+    // accepting ETH
+    receive() external payable {}
 }
