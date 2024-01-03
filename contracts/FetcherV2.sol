@@ -85,11 +85,11 @@ contract FetcherV2 is IFetcher, ERC165 {
         ) << 16;
     }
 
-    function clear(uint256 ORACLE) external virtual {
-        ensureStateIntegrity(ORACLE);
-        delete s_store[ORACLE];
-        delete s_basePriceCumulative[ORACLE];
-    }
+    // function clear(uint256 ORACLE) external virtual {
+    //     ensureStateIntegrity(ORACLE);
+    //     delete s_store[ORACLE];
+    //     delete s_basePriceCumulative[ORACLE];
+    // }
 
     // This function verifies the full block is old enough (MIN_BLOCK_COUNT),
     // not too old (or blockhash will return 0x0) and return the proof values
