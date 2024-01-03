@@ -86,6 +86,7 @@ describe('price', function () {
     let utr: any
     let owner: SignerWithAddress
     let provider: any
+    let qti: 0 | 1
 
     before(async function() {
         // deploy uniswap v2
@@ -168,10 +169,9 @@ describe('price', function () {
         const StateCalHelper = await new ethers.ContractFactory(compiledHelper.abi, compiledHelper.bytecode, signer)
         stateCalHelper = await StateCalHelper.deploy(derivable1155.address, weth.address)
 
-        const quoteTokenIndex =
-            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
+        qti = weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
         const oracle = ethers.utils.hexZeroPad(
-            bn(quoteTokenIndex)
+            bn(qti)
                 .shl(255)
                 .add(bn(100).shl(256 - 64))
                 .add(uniswapPool.address)
@@ -224,10 +224,8 @@ describe('price', function () {
         const proof = await getProof(provider, uniswapPool.address, busd.address, curBlkNum)
         // Connect to the network
         const contractWithSigner = fetcherV2
-        const quoteTokenIndex =
-            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
         const index = ethers.utils.hexZeroPad(
-            bn(quoteTokenIndex)
+            bn(qti)
                 .shl(255)
                 .add(bn(25).shl(208))
                 .add(uniswapPool.address)
@@ -265,10 +263,8 @@ describe('price', function () {
         }], {gasLimit: 5000000})
 
         // fetch price with !quoteTokenIndex
-        const revertQti =
-            weth.address.toLowerCase() < busd.address.toLowerCase() ? 0 : 1
         const index1 = ethers.utils.hexZeroPad(
-            bn(revertQti)
+            bn(1-qti)
                 .shl(255)
                 .add(bn(0).shl(208))
                 .add(uniswapPool.address)
@@ -282,48 +278,44 @@ describe('price', function () {
 
     it('revert OLD/NEW', async () => {
         // WINDOW_OLD != 0 && proofBlock < block.number - WINDOW
-        const oracle0 = ethers.utils.hexZeroPad(
-            bn(0)
+        const oracle = ethers.utils.hexZeroPad(
+            bn(qti)
                 .shl(255)
                 .add(bn(1).shl(208))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
         )
-        await expect(fetcherV2.fetch(oracle0)).to.be.revertedWith('OLD')
-        // Can not test revert NEW because the block number is always increasing
+        await expect(fetcherV2.fetch(oracle)).to.be.revertedWith('OLD')
+        // Can not test revert NEW, without modifying the submit to remove 'NEW_PROOF' condition
     })
 
     it('revert OLD/NEW_PROOF', async () => {
         // OLD_PROOF
-        const oracleOld = ethers.utils.hexZeroPad(
-            bn(0)
+        const oracle = ethers.utils.hexZeroPad(
+            bn(qti)
                 .shl(255)
-                .add(bn(10).shl(208))
+                .add(bn(100).shl(208))
+                .add(bn(50).shl(192))
                 .add(uniswapPool.address)
                 .toHexString(),
             32
         )
-        const proofOld = await getProof(provider, uniswapPool.address, weth.address, (await provider.getBlockNumber()) - 11)
-        await expect(fetcherV2.submit(oracleOld, proofOld, owner.address, {gasLimit: 5000000})).to.be.revertedWith('OLD_PROOF')
+        const proofOld = await getProof(provider, uniswapPool.address, busd.address, (await provider.getBlockNumber()) - 101)
+        await expect(fetcherV2.submit(oracle, proofOld, owner.address, {gasLimit: 5000000})).to.be.revertedWith('OLD_PROOF')
 
         // NEW_PROOF
-        const oracleNew = ethers.utils.hexZeroPad(
-            bn(0)
-                .shl(255)
-                .add(bn(0).shl(208))
-                .add(bn(10).shl(192))
-                .add(uniswapPool.address)
-                .toHexString(),
-            32
-        )
-        const proofNew = await getProof(provider, uniswapPool.address, weth.address, (await provider.getBlockNumber()) - 5)
-        await expect(fetcherV2.submit(oracleNew, proofNew, owner.address, {gasLimit: 5000000})).to.be.revertedWith('NEW_PROOF')
+        const proofNew = await getProof(provider, uniswapPool.address, busd.address, (await provider.getBlockNumber()) - 45)
+        await expect(fetcherV2.submit(oracle, proofNew, owner.address, {gasLimit: 5000000})).to.be.revertedWith('NEW_PROOF')
+
+        // valid proof
+        const proof = await getProof(provider, uniswapPool.address, busd.address, (await provider.getBlockNumber()) - 50)
+        await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
     })
 
     it('racing submissions', async () => {
         const oracle = ethers.utils.hexZeroPad(
-            bn(0)
+            bn(qti)
                 .shl(255)
                 .add(bn(28).shl(208))
                 .add(uniswapPool.address)
@@ -331,12 +323,12 @@ describe('price', function () {
             32
         )
         const head = await provider.getBlockNumber()
-        const proof = await getProof(provider, uniswapPool.address, weth.address, head - 3)
+        const proof = await getProof(provider, uniswapPool.address, busd.address, head - 3)
         await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
         await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
-        const proof1 = await getProof(provider, uniswapPool.address, weth.address, head - 5)
+        const proof1 = await getProof(provider, uniswapPool.address, busd.address, head - 5)
         await fetcherV2.submit(oracle, proof1, owner.address, {gasLimit: 5000000})
-        const proof2 = await getProof(provider, uniswapPool.address, weth.address, head)
+        const proof2 = await getProof(provider, uniswapPool.address, busd.address, head)
         await fetcherV2.submit(oracle, proof2, owner.address, {gasLimit: 5000000})
     })
 
@@ -352,10 +344,8 @@ describe('price', function () {
         // get the proof from the SDK
         const proof = await getProof(provider, uniswapPool.address, busd.address, (await provider.getBlockNumber()))
         // submit proof
-        const quoteTokenIndex =
-            weth.address.toLowerCase() < busd.address.toLowerCase() ? 1 : 0
-        const index = ethers.utils.hexZeroPad(
-            bn(quoteTokenIndex)
+        const oracle = ethers.utils.hexZeroPad(
+            bn(qti)
                 .shl(255)
                 .add(bn(15).shl(208))
                 .add(uniswapPool.address)
@@ -363,7 +353,7 @@ describe('price', function () {
             32
         )
         const walletBefore = await provider.getBalance(owner.address)
-        const tx = await fetcherV2.submit(index, proof, owner.address, {gasLimit: 5000000})
+        const tx = await fetcherV2.submit(oracle, proof, owner.address, {gasLimit: 5000000})
         const receipt = await tx.wait()
         const walletAfter = await provider.getBalance(owner.address)
         // check the gas fee refund
