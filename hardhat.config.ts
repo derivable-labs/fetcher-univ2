@@ -1,7 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 
 import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-ganache";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
